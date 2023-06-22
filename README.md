@@ -4,10 +4,11 @@ Vehicle Re-Identification
 
 Code will be available upon paper acceptance to ITSC 2023.
 
-When submitted we did not had acess to VehicleID so we report now values for VehicleID:
+Resuls are displayed as mAP / CMC1 in percentage values %.
+VehicleID was not available at the time, so we report values for VehicleID (ongoing) now:
+
 
 VehicleID - Half Precision - Baseline mAP:  88.37 CMC1: 82.77
-Resuls are displayed as mAP / CMC1 in percentage values %.
 ResNet50 only
 | R50      | 4G          | 2G          | 2X2G        | 2B          | 4B          |
 | -------- | ----------- | ----------- | ----------- | ----------- | ----------- |
