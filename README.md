@@ -4,6 +4,8 @@ Vehicle Re-Identification
 
 Code will be available upon paper acceptance to ITSC 2023.
 
+All models are trained with CUDA 11.3 and PyTorch 1.11 on RTX4090 and Ryzen 7950X.
+
 Resuls are displayed as mAP / CMC1 in percentage values %.
 VehicleID was not available at the time, so we report values for VehicleID (ongoing) now:
 
