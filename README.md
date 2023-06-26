@@ -10,7 +10,7 @@ Resuls are displayed as mAP / CMC1 in percentage values %.
 VehicleID was not available at the time, so we report values for VehicleID (ongoing) now:
 
 
-VehicleID - No Lamba tuning - Half Precision - Baseline mAP:  88.37 CMC1: 82.77
+VehicleID - No Lamba tuning for these results - Half Precision - Baseline mAP:  88.37 CMC1: 82.77
 
 
 ResNet50 
