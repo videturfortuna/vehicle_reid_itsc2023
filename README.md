@@ -11,7 +11,9 @@ VehicleID was not available at the time, so we report values for VehicleID (ongo
 
 
 VehicleID - No Lamba tuning - Half Precision - Baseline mAP:  88.37 CMC1: 82.77
-ResNet50 only
+
+
+ResNet50 
 | R50      | 4G          | 2G          | 2X2G        | 2B          | 4B          |
 | -------- | ----------- | ----------- | ----------- | ----------- | ----------- |
 | CE + Tri | 89.61 / 84.34 | 88.82 / 83.16 | 89.00 / 83.45 | 88.58 / 82.95 | 88.78 / 83.19 |
