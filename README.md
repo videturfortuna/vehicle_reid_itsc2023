@@ -1,7 +1,7 @@
 # vehicle_reid_itsc2023
 Strength in Diversity: Multi-Branch Representation Learning for
 Vehicle Re-Identification
-
+Version 0.1 I still need to complete somethings but I expect that in October to be finished.
 Code will be available upon paper acceptance to ITSC 2023.
 
 All models are trained with CUDA 11.3 and PyTorch 1.11 on RTX4090 and Ryzen 7950X.
