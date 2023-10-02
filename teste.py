@@ -121,7 +121,8 @@ def test_epoch(model, device, dataloader_q, dataloader_g, model_arch, remove_jun
                 else:
                     _, _, ffs, activations = model(image)
 
-            save_activ(activations, count_imgs, data, re_escala, queries_names, blend_ratio)
+            if not data['dataset'] == "VehicleID":
+                save_activ(activations, count_imgs, data, re_escala, queries_names, blend_ratio)
                     
             count_imgs += activations[0].shape[0]
             if model_arch =='Baseline' or model_arch=="MOCOv2_OG" or model_arch=="SingleBranchOG_NLC" or model_arch == 'BoT_baseline':
@@ -153,7 +154,8 @@ def test_epoch(model, device, dataloader_q, dataloader_g, model_arch, remove_jun
                 else:
                     _, _, ffs, activations = model(image)
 
-            save_activ(activations, count_imgs, data, re_escala, galeria_names, blend_ratio, "_g")
+            if not data['dataset'] == "VehicleID":
+                save_activ(activations, count_imgs, data, re_escala, galeria_names, blend_ratio, "_g")
 
             if model_arch =='Baseline' or model_arch=="MOCOv2_OG" or model_arch=="SingleBranchOG_NLC" or model_arch == 'BoT_baseline':
                 gf.append(F.normalize(ffs))
@@ -266,7 +268,7 @@ if __name__ == "__main__":
     model = get_model(data, torch.device("cpu"))
 
 
-    path_weights = args.path_weights + 'best_mAP.pt'
+    path_weights = args.path_weights + 'last.pt'
 
 
     if not data['model_arch'] == "MOCOv2":
