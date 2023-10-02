@@ -8,6 +8,17 @@ All models are trained with CUDA 11.3 and PyTorch 1.11 on RTX4090 and Ryzen 7950
 Resuls are displayed as mAP / CMC1 in percentage values %.
 VehicleID was not available at the time, we report values for VehicleID now. We follow evaluation as FastReid with 10-fold cross-validation to select queries and gallery.
 
+To train:
+```console
+python main.py --model_arch MBR_4G --config ./config/config_VERIWILD.yaml
+```
+
+Test:
+```console
+python teste.py --path_weights ./logs/Veri776/BoT_baseline/0/
+```
+
+
 
 ### Veri-776
 Full Precision - Baseline mAP: 81.15 CMC1: 96.96 lambda:0.6 beta:1.0
