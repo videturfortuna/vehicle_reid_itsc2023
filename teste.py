@@ -220,21 +220,15 @@ if __name__ == "__main__":
 
 
 
-    # with open(path2test + "config.yaml", "r") as stream:
-    #     data = yaml.safe_load(stream)
-    with open("./config/config.yaml", "r") as stream:
-       data = yaml.safe_load(stream)
-
-
+    with open(args.path_weights + "config.yaml", "r") as stream:
+        data = yaml.safe_load(stream)
+    # with open("./config/config.yaml", "r") as stream:
+    #    data = yaml.safe_load(stream)
 
     data['BATCH_SIZE'] = args.batch_size or data['BATCH_SIZE']
     data['dataset'] = args.dataset or data['dataset']
     data['model_arch'] = args.model_arch or data['model_arch']
-    path2test = "./logs/"+data['dataset']+"/"+data['model_arch']+"/0/"
 
-    data['path_weights'] = args.path_weights or path2test
-
-    # data['model_arch'] = "Baseline"
 
     teste_transform = transforms.Compose([
                     transforms.Resize((data['y_length'],data['x_length']), antialias=True),
