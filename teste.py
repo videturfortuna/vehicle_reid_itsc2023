@@ -28,14 +28,7 @@ def normalize_batch(batch, maximo=None, minimo = None):
         return (batch - torch.amin(batch, dim=(1, 2)).unsqueeze(-1).unsqueeze(-1)) / (torch.amax(batch, dim=(1, 2)).unsqueeze(-1).unsqueeze(-1) - torch.amin(batch, dim=(1, 2)).unsqueeze(-1).unsqueeze(-1))
     
 
-# from fvcore.nn import FlopCountAnalysis
-# from ptflops import get_model_complexity_info
-# from thop import profile
-# from torchanalyse import profiler, System, Unit
 
-
-import matplotlib
-matplotlib.use('Agg')
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
@@ -61,11 +54,11 @@ def save_activ(activations, count_imgs, data, transform, path_names, blend_ratio
                     for i in range(mapactiv.shape[0]):
                         if data['dataset'] == 'VERIWILD':
                             path2img = data['ROOT_DIR'] + path_names[count_imgs + i, 0]
-                            outputDIR = data['path_weights'] + '/activations'+q_or_g+'/'
+                            outputDIR = args.path_weights + '/activations'+q_or_g+'/'
                             if not os.path.exists(outputDIR): os.mkdir(outputDIR)
                         else:
                             path2img = data['teste_dir'] + str(path_names[count_imgs + i])
-                            outputDIR = data['path_weights'] + '/activations'+q_or_g+'/'
+                            outputDIR = args.path_weights + '/activations'+q_or_g+'/'
                             if not os.path.exists(outputDIR): os.mkdir(outputDIR)
                         img_og = cv2.resize(cv2.imread(path2img), (256,256), interpolation= cv2.INTER_LINEAR)
                         if cnt == 0:            
@@ -189,11 +182,11 @@ def test_epoch(model, device, dataloader_q, dataloader_g, model_arch, remove_jun
     q_vids = torch.cat(q_vids, dim=0).cpu().numpy()
     g_vids = torch.cat(g_vids, dim=0).cpu().numpy()   
     
-    with open(data['path_weights'] +'distmat.npy', 'wb') as f:
+    with open(args.path_weights +'distmat.npy', 'wb') as f:
         np.save(f, distmat)
-    # with open(data['path_weights'] +'q_view.npy', 'wb') as f:
+    # with open(args.path_weights +'q_view.npy', 'wb') as f:
     #     np.save(f, q_view_id)
-    # with open(data['path_weights'] +'g_view.npy', 'wb') as f:
+    # with open(args.path_weights +'g_view.npy', 'wb') as f:
     #     np.save(f, g_view_id)
     del qf, gf
 
@@ -273,7 +266,7 @@ if __name__ == "__main__":
     model = get_model(data, torch.device("cpu"))
 
 
-    path_weights = data['path_weights'] + 'best_mAP.pt'
+    path_weights = args.path_weights + 'best_mAP.pt'
 
 
     if not data['model_arch'] == "MOCOv2":
@@ -300,8 +293,8 @@ if __name__ == "__main__":
             reader = open('/home/eurico/VehicleID_V1.0/train_test_split/test_list_800.txt')
             lines = reader.readlines()
             random.shuffle(lines)
-            data_q = CustomDataSet4VehicleID_Random(lines, data['ROOT_DIR'], is_train=False, mode="q", transform=teste_transform)
-            data_g = CustomDataSet4VehicleID_Random(lines, data['ROOT_DIR'], is_train=False, mode="g", transform=teste_transform)
+            data_q = CustomDataSet4VehicleID_Random(lines, data['ROOT_DIR'], is_train=False, mode="q", transform=teste_transform, teste=True)
+            data_g = CustomDataSet4VehicleID_Random(lines, data['ROOT_DIR'], is_train=False, mode="g", transform=teste_transform, teste=True)
             data_q = DataLoader(data_q, batch_size=data['BATCH_SIZE'], shuffle=False, num_workers=data['num_workers_teste'])
             data_g = DataLoader(data_g, batch_size=data['BATCH_SIZE'], shuffle=False, num_workers=data['num_workers_teste'])
             cmc, mAP = test_epoch(model, device, data_q, data_g, data['model_arch'], remove_junk=True, scaler=scaler)
@@ -312,16 +305,16 @@ if __name__ == "__main__":
         cmc1 = sum(list_cmc1) / len(list_cmc1)
         cmc5 = sum(list_cmc5) / len(list_cmc5)
         print(f'\n\nmAP = {mAP},  CMC1= {cmc1}, CMC5= {cmc5}')
-        with open(data['path_weights'] +'result_map_l2_'+ str(l2) + '_mean_' + str(mean) +'.npy', 'wb') as f:
+        with open(args.path_weights +'result_map_l2_'+ str(l2) + '_mean_' + str(mean) +'.npy', 'wb') as f:
             np.save(f, mAP)
-        with open(data['path_weights'] +'result_cmc_l2_'+ str(l2) + '_mean_' + str(mean) +'.npy', 'wb') as f:
+        with open(args.path_weights +'result_cmc_l2_'+ str(l2) + '_mean_' + str(mean) +'.npy', 'wb') as f:
             np.save(f, cmc1)
     else:
         cmc, mAP = test_epoch(model, device, data_q, data_g, data['model_arch'], remove_junk=True, scaler=scaler)
         print(f'mAP = {mAP},  CMC1= {cmc[0]}, CMC5= {cmc[4]}')
-        with open(data['path_weights'] +'result_map_l2_'+ str(l2) + '_mean_' + str(mean) +'.npy', 'wb') as f:
+        with open(args.path_weights +'result_map_l2_'+ str(l2) + '_mean_' + str(mean) +'.npy', 'wb') as f:
             np.save(f, mAP)
-        with open(data['path_weights'] +'result_cmc_l2_'+ str(l2) + '_mean_' + str(mean) +'.npy', 'wb') as f:
+        with open(args.path_weights +'result_cmc_l2_'+ str(l2) + '_mean_' + str(mean) +'.npy', 'wb') as f:
             np.save(f, cmc)
 
     print('Weights: ', path_weights)      

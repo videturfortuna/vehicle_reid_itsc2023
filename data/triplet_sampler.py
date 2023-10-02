@@ -529,7 +529,7 @@ class CustomDataSet4Veri776_withviewpont(Dataset):
         return img, vid, camid, viewid     
 
 class CustomDataSet4VehicleID_Random(Dataset):
-    def __init__(self, lines, root_dir, is_train=True, mode=None, transform=None):
+    def __init__(self, lines, root_dir, is_train=True, mode=None, transform=None, teste=False):
         """
         Args:
             csv_file (string): Path to the csv file with annotations.
@@ -540,6 +540,7 @@ class CustomDataSet4VehicleID_Random(Dataset):
         self.data_info = []
         self.names = []
         self.labels = []
+        self.teste = teste
         if is_train == True:
             for line in lines:
                 line = line.strip()
@@ -591,12 +592,15 @@ class CustomDataSet4VehicleID_Random(Dataset):
                                 self.names[idx]+ ".jpg")
         image = torchvision.io.read_image(img_name)
         vid = np.int64(self.labels[idx])
+        ### no camera information
         camid = idx #np.int64(self.cams[idx].replace('c', ""))
 
         if self.transform:
             img = self.transform((image.type(torch.FloatTensor))/255.0)
-
-        return img, vid, camid 
+        if self.teste:
+            return img, vid, camid, 0
+        else:
+            return img, vid, camid
 
 
 
