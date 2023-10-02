@@ -1,17 +1,12 @@
 # vehicle_reid_itsc2023
-## Strength in Diversity: Multi-Branch Representation Learning for
-Vehicle Re-Identification
+## Strength in Diversity: Multi-Branch Representation Learning for Vehicle Re-Identification
 
-Version 0.2 - Still missing some cleaning and LAI
+Version 0.2 - Still requiring some cleaning and LAI
 
 All models are trained with CUDA 11.3 and PyTorch 1.11 on RTX4090 and Ryzen 7950X.
 
 Resuls are displayed as mAP / CMC1 in percentage values %.
 VehicleID was not available at the time, we report values for VehicleID now. We follow evaluation as FastReid with 10-fold cross-validation to select queries and gallery.
-
-
-
-
 
 
 ### Veri-776
@@ -45,7 +40,7 @@ Value updated due to weird behaviour with nn.parallel
 
 ### VehicleID 
 
-Half Precision - Baseline mAP:  88.37 CMC1: 82.77 lambda:0.2 beta:1.0
+Half Precision - Baseline mAP:  91.44 CMC1: 86.72 lambda:0.2 beta:1.0
 
 
 | R50      | 4G          | 2G          | 2X2G        | 2X          | 4X          |
@@ -58,3 +53,12 @@ Hybrid R50+BoT
 | -------- | ----------- | ----------- | ----------- | ----------- | ----------- |
 | CE + Tri | 91.35/86.46 | 91.66/87.01 | 91.48/86.76 | 91.99/87.39 | 92.03/87.49 |
 | CE | Tri | 90.36/85.17 | NULL        | 91.15/86.22 | NULL        | **92.32**/**87.97** |
+
+
+Please cite our paper if you are using any proposed techniques or base in our code:
+
+
+Some code as dataset opening, evaluation, and other is mainly reused from:
+Parsing-based View-aware Embedding Network for Vehicle Re-Identification
+Bag of Tricks and A Strong Baseline for Deep Person Re-identification
+FastREID
