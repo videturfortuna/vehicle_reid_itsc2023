@@ -15,7 +15,7 @@ python main.py --model_arch MBR_4G --config ./config/config_VERIWILD.yaml
 
 Test:
 ```console
-python teste.py --path_weights ./logs/Veri776/BoT_baseline/0/
+python teste.py --path_weights ./logs/Veri776/MBR_4G/0/
 ```
 
 
