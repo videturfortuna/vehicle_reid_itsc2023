@@ -1,31 +1,16 @@
 # vehicle_reid_itsc2023
 Strength in Diversity: Multi-Branch Representation Learning for
 Vehicle Re-Identification
-Version 0.1 I still need to complete somethings but I expect that in October to be finished.
+Version 0.2 I still need to complete somethings but I expect that in October to be finished.
 Code will be available upon paper acceptance to ITSC 2023.
 
 All models are trained with CUDA 11.3 and PyTorch 1.11 on RTX4090 and Ryzen 7950X.
 
 Resuls are displayed as mAP / CMC1 in percentage values %.
-VehicleID was not available at the time, so we report values for VehicleID (ongoing) now, we follow evaluation as FastReid with 10-fold cross-validation to select queries and gallery.
+VehicleID was not available at the time, we report values for VehicleID now. We follow evaluation as FastReid with 10-fold cross-validation to select queries and gallery.
 
 
-VehicleID - No Lamba tuning for these results - Half Precision - Baseline mAP:  88.37 CMC1: 82.77
 
-
-ResNet50 
-| R50      | 4G          | 2G          | 2X2G        | 2B          | 4B          |
-| -------- | ----------- | ----------- | ----------- | ----------- | ----------- |
-| CE + Tri | 89.61 / 84.34 | 88.82 / 83.16 | 89.00 / 83.45 | 88.58 / 82.95 | 88.78 / 83.19 |
-| CE or Tri |  90.31 / 85.27            | 89.96 / 84.88 | 90.5 / 85.35  | 90.6 / 85.83  | 91.0 / 86.19  |
-| Params   | 12M         | 16M         | 23.5M       | 38.5M       | 69.6M       |
-
-Hybrid R50+BoT
-| R50+BoT  | 4G          | 2G    | 2X2G  | 2B    | 4B          |
-| -------- | ----------- | ----- | ----- | ----- | ----------- |
-| CE + Tri | 88.12 / 82.23 |  87.68 / 81.73      |  89.02 / 83.58      |  88.87 / 83.28      |  90.06 / 84.78            |
-| CE or Tri | 89.85 / 84.64 | NULL  |  90.11 / 84.94     | NULL  | 90.99 / 86.08 |
-| Params   | 11.7M       | 13.7M | 18.8M | 33.8M | 59.1M       |
 
 
 
@@ -41,3 +26,35 @@ Full Precision - Baseline mAP: 81.15 CMC1: 96.96 lambda:0.6 beta:1.0
 | -------- | ----------- | ------------ | ----------- | ----------- | ----------- |
 | CE + Tri | 82.04/96.96 | 81.14/ 97.02 | 82.02/96.78 | 82.82/97.20 | 83.3/97.62  |
 | CE / Tri | 82.67/97.02 | NULL         | 82.57/97.32 | NULL        | **84.72**/**97.68** |
+
+
+### Veri-Wild
+HAlf Precision - Baseline mAP: 87.24 CMC1: 96.65 lambda:0.8 beta:1.0
+Value updated due to weird behaviour with nn.parallel 
+| R50      | 4G          | 2G          | 2X2G        | 2X          | 4X          |
+| -------- | ----------- | ----------- | ----------- | ----------- | ----------- |
+| CE + Tri | 85.16/94.81 | 86.66/96.08 | 86.7/95.52  | 87.64/96.39 | 87.31/96.05 |
+| CE / Tri | 84.05/93.41 | 86.11/95.28 | 86.91/95.78 | 87.31/95.98 | 87.73/96.02 |
+
+| R50+BoT  | 4G          | 2G          | 2X2G        | 2X          | 4X         |
+| -------- | ----------- | ----------- | ----------- | ----------- | ---------- |
+| CE + Tri | 86.07/95.58 | 86.92/96.29 | 87.11/95.62 | 88.57/**96.79** | **88.9**/96.55 |
+| CE / Tri | 85.29/94.85 | NULL        | 86.52/95.21 | NULL        | 86.9/95.75 |
+
+
+
+### VehicleID 
+
+Half Precision - Baseline mAP:  88.37 CMC1: 82.77 lambda:0.2 beta:1.0
+
+
+| R50      | 4G          | 2G          | 2X2G        | 2X          | 4X          |
+| -------- | ----------- | ----------- | ----------- | ----------- | ----------- |
+| CE + Tri | 91.5|86.81  | 91.86|87.35 | 91.6|86.95  | 92.04|87.62 | 91.79|87.28 |
+| CE | Tri | 90.68|85.56 | 90.94|85.59 | 91.44|86.66 | 91.45|86.83 | 91.91|87.36 |
+
+Hybrid R50+BoT
+| R50+BoT  | 4G          | 2G          | 2X2G        | 2X          | 4X          |
+| -------- | ----------- | ----------- | ----------- | ----------- | ----------- |
+| CE + Tri | 91.35|86.46 | 91.66|87.01 | 91.48|86.76 | 91.99|87.39 | 92.03|87.49 |
+| CE | Tri | 90.36|85.17 | NULL        | 91.15|86.22 | NULL        | **92.32**|**87.97** |
