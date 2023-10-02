@@ -1,0 +1,102 @@
+model_arch: Baseline
+backbone: ibn #-D
+torch_seed: 0 #0 # 3407
+epoch_freeze_L1toL3: 10
+freeze_triplet_branches: 0
+freeze_backbone_warmup: False 
+branch_layer: 3
+validation_period: 10
+
+###GPU Settings
+half_precision: True 
+parallel: False
+gpu: 
+
+####LOSSES
+mean_losses: False
+
+softmax_loss: torch_ce
+label_smoothing: 0.1
+
+metric_loss: fastreidtriplet 
+metric_loss_trans: fastreidtriplet
+hard_mining: True
+triplet_norm: False
+triplet_margin: 0.1 
+triplet_margin_trans: 0.1
+
+
+circle_softmax: False
+margin_circle: 0.35
+scale_circle: 64
+
+
+
+group_norm: False
+pretrain_gropnorm: False
+gn_init: kaiming
+pretrain_ongroups: True
+
+
+# 
+##DATA
+ROOT_DIR: /mnt/DATADISK/Datasets/vehicle/VERIWILD/images/
+BATCH_SIZE: 128 #48
+NUM_INSTANCES: 4 #8
+num_workers_train: 8 #8
+num_workers_teste: 16
+
+y_length: 256
+x_length: 256
+
+n_mean: [0.5, 0.5, 0.5]
+n_std: [0.5, 0.5, 0.5]
+
+p_hflip: 0.5
+p_rerase: 0.5
+
+####VERIWILD 3067306711 Veri776 770 Market 1501
+dataset: VERIWILD
+
+n_classes: 30671
+query_dir: /home/eurico/VeRi/image_query/ #/mnt/DATADISK/Datasets/vehicle/VeRi/image_query/ #
+teste_dir: /home/eurico/VeRi/image_test/  #/mnt/DATADISK/Datasets/vehicle/VeRi/image_test/ #
+train_dir: /home/eurico/VeRi/image_train/ #/mnt/DATADISK/Datasets/vehicle/VeRi/image_train/ #
+query_list_file: /home/eurico/VeRi/name_query.txt
+gallery_list_file: /home/eurico/VeRi/name_test.txt
+train_list_file: /home/eurico/VeRi/name_train.txt
+
+test_keypoint: /home/eurico/VeRi/keypoint_orient_test.txt
+train_keypoint: /home/eurico/VeRi/keypoint_orient_train.txt
+
+### Define an optimizer settings
+optimizer: Adam #Adam SGD
+lr: 0.0001 #3.5e-5 original Adam 0.0001
+weight_decay:  0.0005
+bias_lr_factor: 1
+momentum: 0.9
+
+###scheduler settings
+sched_name: Warm_MultiStep
+min_lr: 7.75e-5
+num_epochs: 130
+milestones: [40, 70, 100]
+gamma: 0.1
+warmup_factor: 0.0
+warmup_iters: 10
+warmup_method: linear
+
+
+alpha_ce: 0.8 #aka alpha
+beta_tri: 1.0  #aka beta
+gamma_ce: 0.8
+gamma_t: 1.0
+
+
+#####Experiment 
+pool: GAP   ###GeM    HMP   GAP
+pool_tripletb: GAP
+pool_trans: GAP
+linear_num: False #1024 #False or value 
+
+
