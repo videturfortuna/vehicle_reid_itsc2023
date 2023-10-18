@@ -57,16 +57,16 @@ Half Precision - Baseline mAP:  91.44 CMC1: 86.72 lambda:0.2 beta:1.0
 | R50      | 4G          | 2G          | 2X2G        | 2X          | 4X          |
 | -------- | ----------- | ----------- | ----------- | ----------- | ----------- |
 | CE + Tri | 91.5/86.81  | 91.86/87.35 | 91.6/86.95  | 92.04/87.62 | 91.79/87.28 |
-| CE | Tri | 90.68/85.56 | 90.94/85.59 | 91.44/86.66 | 91.45/|86.83 | 91.91/87.36 |
+| CE / Tri | 90.68/85.56 | 90.94/85.59 | 91.44/86.66 | 91.45/|86.83 | 91.91/87.36 |
 
 Hybrid R50+BoT
 | R50+BoT  | 4G          | 2G          | 2X2G        | 2X          | 4X          |
 | -------- | ----------- | ----------- | ----------- | ----------- | ----------- |
 | CE + Tri | 91.35/86.46 | 91.66/87.01 | 91.48/86.76 | 91.99/87.39 | 92.03/87.49 |
-| CE | Tri | 90.36/85.17 | NULL        | 91.15/86.22 | NULL        | **92.32**/**87.97** |
+| CE / Tri | 90.36/85.17 | NULL        | 91.15/86.22 | NULL        | **92.32**/**87.97** |
 
 
-Please cite our paper if you are using any proposed techniques or base in our code:
+Please cite our paper inspired on proposed techniques or code. ref will be published soon.
 
 
 Some code as dataset opening, evaluation, and other is mainly reused from:
