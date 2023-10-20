@@ -1,4 +1,4 @@
-model_arch: Baseline
+model_arch: Hybrid_4B
 backbone: ibn #-D
 torch_seed: 0 #0 # 3407
 epoch_freeze_L1toL3: 10
