@@ -268,7 +268,7 @@ if __name__ == "__main__":
     model = get_model(data, torch.device("cpu"))
 
 
-    path_weights = args.path_weights + 'last.pt'
+    path_weights = args.path_weights + 'best_mAP.pt'
 
 
     if not data['model_arch'] == "MOCOv2":
