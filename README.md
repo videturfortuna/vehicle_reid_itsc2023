@@ -57,7 +57,7 @@ Half Precision - Baseline mAP:  91.44 CMC1: 86.72 lambda:0.2 beta:1.0
 | R50      | 4G          | 2G          | 2X2G        | 2X          | 4X          |
 | -------- | ----------- | ----------- | ----------- | ----------- | ----------- |
 | CE + Tri | 91.5/86.81  | 91.86/87.35 | 91.6/86.95  | 92.04/87.62 | 91.79/87.28 |
-| CE / Tri | 90.68/85.56 | 90.94/85.59 | 91.44/86.66 | 91.45/|86.83 | 91.91/87.36 |
+| CE / Tri | 90.68/85.56 | 90.94/85.59 | 91.44/86.66 | 91.45/86.83 | 91.91/87.36 |
 
 Hybrid R50+BoT
 | R50+BoT  | 4G          | 2G          | 2X2G        | 2X          | 4X          |
@@ -69,7 +69,7 @@ Hybrid R50+BoT
 Please cite our paper inspired on proposed techniques or code. ref will be published soon.
 
 
-Some code as dataset opening, evaluation, and other is mainly reused from:
+Some code as data loading, evaluation, and other is mainly reused from:
 Parsing-based View-aware Embedding Network for Vehicle Re-Identification
 Bag of Tricks and A Strong Baseline for Deep Person Re-identification
 FastREID
