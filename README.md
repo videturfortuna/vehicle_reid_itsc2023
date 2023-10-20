@@ -37,7 +37,7 @@ Full Precision - Baseline mAP: 81.15 CMC1: 96.96 lambda:0.6 beta:1.0
 
 
 ### Veri-Wild
-HAlf Precision - Baseline mAP: 87.24 CMC1: 96.65 lambda:0.8 beta:1.0
+Half Precision - Baseline mAP: 87.24 CMC1: 96.65 lambda:0.8 beta:1.0
 Value updated due to weird behaviour with nn.parallel 
 | R50      | 4G          | 2G          | 2X2G        | 2X          | 4X          |
 | -------- | ----------- | ----------- | ----------- | ----------- | ----------- |
@@ -65,7 +65,7 @@ Hybrid R50+BoT
 | R50+BoT  | 4G          | 2G          | 2X2G        | 2X          | 4X          |
 | -------- | ----------- | ----------- | ----------- | ----------- | ----------- |
 | CE + Tri | 91.35/86.46 | 91.66/87.01 | 91.48/86.76 | 91.99/87.39 | 92.03/87.49 |
-| CE / Tri | 90.36/85.17 | NULL        | 91.15/86.22 | NULL        | **92.32**/**87.97** |
+| CE / Tri | 90.36/85.17 | NULL        | 91.15/86.22 | NULL        | **92.54**/**88.28** |
 
 
 Please cite our paper inspired on proposed techniques or code. ref will be published soon.
