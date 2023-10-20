@@ -6,6 +6,7 @@ Version 0.2 - Still requiring some cleaning and LAI
 All models are trained with CUDA 11.3 and PyTorch 1.11 on RTX4090 and Ryzen 7950X.
 
 Resuls are displayed as mAP / CMC1 in percentage values %.
+
 VehicleID was not available at the time, we report values for VehicleID now. We follow evaluation as FastReid with 10-fold cross-validation to select queries and gallery.
 
 To train:
@@ -71,5 +72,7 @@ Please cite our paper inspired on proposed techniques or code. ref will be publi
 
 Some code as data loading, evaluation, and other is mainly reused from:
 Parsing-based View-aware Embedding Network for Vehicle Re-Identification
+
 Bag of Tricks and A Strong Baseline for Deep Person Re-identification
+
 FastREID
