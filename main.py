@@ -12,7 +12,7 @@ import torch.multiprocessing
 import yaml
 import os
 from tensorboard_log import Logger
-from processor import get_lr, get_model, train_epoch, test_epoch 
+from processor import get_model, train_epoch, test_epoch 
 
 
 torch.multiprocessing.set_sharing_strategy('file_system')
@@ -58,7 +58,6 @@ if __name__ == "__main__":
     parser.add_argument('--half_precision', default=None, help='Use of mixed precision') 
     parser.add_argument('--mean_losses', default=None, help='Use of mixed precision') 
     
-    # parser.add_argument('--use_metric_loss', default=None, type=int, help='Whether to Metric Loss such as Triplet Loss    1->ON  0->OFF')
     args = parser.parse_args()
 
     ### Load hyper parameters
@@ -66,7 +65,7 @@ if __name__ == "__main__":
         with open(args.config, "r") as stream:
             data = yaml.safe_load(stream)
     else:
-        with open("./config/config_BoT_VehicleID.yaml", "r") as stream:
+        with open("./config/config.yaml", "r") as stream:
             data = yaml.safe_load(stream)
 
     data['BATCH_SIZE'] = args.batch_size or data['BATCH_SIZE']
@@ -97,7 +96,7 @@ if __name__ == "__main__":
 
     #### Set Seed for consistent and deterministic results
     set_seed(data['torch_seed'])
-    print("\n\n\n  DATA config used: \n")
+    print("\n\n\n  Config used: \n")
     print(data)
     print("\n\n\n End config")
     #### Transformation augmentation
@@ -128,28 +127,24 @@ if __name__ == "__main__":
         data_q = DataLoader(data_q, batch_size=data['BATCH_SIZE'], shuffle=False, num_workers=data['num_workers_teste'])
         data_g = DataLoader(data_g, batch_size=data['BATCH_SIZE'], shuffle=False, num_workers=data['num_workers_teste'])
     if data['dataset']== 'VERIWILD':
-        data_q = CustomDataLoader2('./train_test_split/test_3000_id_query.txt', data['ROOT_DIR'], transform=teste_transform, with_view=False)
-        data_g = CustomDataLoader2('./train_test_split/test_3000_id.txt', data['ROOT_DIR'], transform=teste_transform, with_view=False)
-        data_train = CustomDataLoader2('./train_test_split/train_list_start0.txt', data['ROOT_DIR'], transform=train_transform, with_view=False)
+        data_q = CustomDataLoader2('/home/eurico/VERI-Wild/train_test_split/test_3000_id_query.txt', data['ROOT_DIR'], transform=teste_transform, with_view=False)
+        data_g = CustomDataLoader2('/home/eurico/VERI-Wild/train_test_split/test_3000_id.txt', data['ROOT_DIR'], transform=teste_transform, with_view=False)
+        data_train = CustomDataLoader2('/home/eurico/VERI-Wild/train_test_split/train_list.txt', data['ROOT_DIR'], transform=train_transform, with_view=False)
         data_train = DataLoader(data_train, sampler=RandomIdentitySampler2(data_train, data['BATCH_SIZE'], data['NUM_INSTANCES']), num_workers=data['num_workers_train'], batch_size = data['BATCH_SIZE'], collate_fn=train_collate_fn, pin_memory=True)#
         data_q = DataLoader(data_q, batch_size=data['BATCH_SIZE'], shuffle=False, num_workers=data['num_workers_teste'])
         data_g = DataLoader(data_g, batch_size=data['BATCH_SIZE'], shuffle=False, num_workers=data['num_workers_teste'])
 
     if data['dataset'] == 'Veri776':
-        data_q = CustomDataSet4Veri776(data['query_list_file'], data['query_dir'], is_train=False, transform=teste_transform)
-        data_g = CustomDataSet4Veri776(data['gallery_list_file'], data['teste_dir'], is_train=False, transform=teste_transform)
-        data_train = CustomDataSet4Veri776(data['train_list_file'], data['train_dir'], is_train=True, transform=train_transform)
+        data_q = CustomDataSet4Veri776_withviewpont(data['query_list_file'], data['query_dir'], data['train_keypoint'], data['test_keypoint'], is_train=False, transform=teste_transform)
+        data_g = CustomDataSet4Veri776_withviewpont(data['gallery_list_file'], data['teste_dir'], data['train_keypoint'], data['test_keypoint'], is_train=False, transform=teste_transform)
+        if data["LAI"]:
+            data_train = CustomDataSet4Veri776_withviewpont(data['train_list_file'], data['train_dir'], data['train_keypoint'], data['test_keypoint'], is_train=True, transform=train_transform)
+        else:
+            data_train = CustomDataSet4Veri776(data['train_list_file'], data['train_dir'], is_train=True, transform=train_transform)
         data_train = DataLoader(data_train, sampler=RandomIdentitySampler2(data_train, data['BATCH_SIZE'], data['NUM_INSTANCES']), num_workers=data['num_workers_train'], batch_size = data['BATCH_SIZE'], collate_fn=train_collate_fn, pin_memory=True)
         data_q = DataLoader(data_q, batch_size=data['BATCH_SIZE'], shuffle=False, num_workers=data['num_workers_teste'])
         data_g = DataLoader(data_g, batch_size=data['BATCH_SIZE'], shuffle=False, num_workers=data['num_workers_teste'])
-    if data['dataset'] == 'Market1501':
-        data_q = CustomDataSet4Market1501(data['query_list_file'], data['query_dir'], is_train=False, transform=teste_transform)
-        data_g = CustomDataSet4Market1501(data['gallery_list_file'], data['teste_dir'], is_train=False, transform=teste_transform)
-        data_train = CustomDataSet4Market1501(data['train_list_file'], data['train_dir'], is_train=True, transform=train_transform)
-        data_train = DataLoader(data_train, sampler=RandomIdentitySampler(data_train, data['BATCH_SIZE'], data['NUM_INSTANCES']), num_workers=data['num_workers_train'], batch_size = data['BATCH_SIZE'], collate_fn=train_collate_fn, pin_memory=True)
-        data_q = DataLoader(data_q, batch_size=data['BATCH_SIZE'], shuffle=False, num_workers=data['num_workers_teste'])
-        data_g = DataLoader(data_g, batch_size=data['BATCH_SIZE'], shuffle=False, num_workers=data['num_workers_teste'])
-    
+ 
     # Check if the GPU is available and select
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     print(f'Selected device: {device}')
@@ -199,77 +194,27 @@ if __name__ == "__main__":
 
     ##freeze backbone until data['warmup_iters'] 
     if data['freeze_backbone_warmup']:
-        for i, child in enumerate(model.children()):
-            if not i == 1:
-                for param in child.parameters():
-                    param.requires_grad = False
+        for param in model.modelup2L3.parameters():
+            param.requires_grad = False
+        for param in model.modelL4.parameters():
+            param.requires_grad = False
     if data['epoch_freeze_L1toL3'] > 0:
-        if data['parallel']:
-            if data['model_arch'] == "MBR_4G" or data['model_arch'] == "BoT_baseline" or data['model_arch'] == "BOT_2G" or data['model_arch'] == 'MBR_2x2G_B' or data['model_arch'] == 'MBR_2x2G_A' or data['model_arch']=="2x2G_H_NoLSB" or data['model_arch']=="Hybrid_2G" or data['model_arch']=='Hybrid_4G' or data['model_arch']=="4G_LOCAL":
-                for i, child in enumerate(model.module.children()):
-                    if i ==0:
-                        for j, grandson in enumerate(child.children()):
-                            if j <7:
-                                for param in grandson.parameters():
-                                    param.requires_grad = False   
-            else:
-                for i, child in enumerate(model.module.globalBranch.model.children()):
-                    if i <7:
-                        for param in child.parameters():
-                            param.requires_grad = False  
-            if data['freeze_triplet_branches'] > 0:
-                for i, child in enumerate(model.module.transform_net_t.model.children()):
-                    for param in child.parameters():
-                        param.requires_grad = False      
-                for i, child in enumerate(model.module.SubNet4e5.model.children()):
-                    for param in child.parameters():
-                        param.requires_grad = False                   
-        else:
-            if data['model_arch'] == "MBR_4G" or data['model_arch'] == "BoT_baseline" or data['model_arch'] == "BOT_2G" or data['model_arch'] == 'MBR_2x2G_B' or data['model_arch'] == 'MBR_2x2G_A' or data['model_arch']=="2x2G_H_NoLSB" or data['model_arch']=="Hybrid_2G" or data['model_arch']=='Hybrid_4G' or data['model_arch']=="4G_LOCAL":
-                for i, child in enumerate(model.children()):
-                    if i ==0:
-                        for j, grandson in enumerate(child.children()):
-                            if j <7:
-                                for param in grandson.parameters():
-                                    param.requires_grad = False    
-            else:
-                if data['freeze_triplet_branches'] > 0:
-                    for i, child in enumerate(model.transform_net_t.model.children()):
-                        for param in child.parameters():
-                            param.requires_grad = False      
-                    for i, child in enumerate(model.SubNet4e5.model.children()):
-                        for param in child.parameters():
-                            param.requires_grad = False   
-                for i, child in enumerate(model.globalBranch.model.children()):
-                    if i <7:
-                        for param in child.parameters():
-                            param.requires_grad = False               
-
+        ### Freeze up to the penultimate layer    
+        for param in model.modelup2L3.parameters():
+            param.requires_grad = False
+        print("\nFroze Backbone before branches!")
+  
 
     ## Training Loop
 
     for epoch in tqdm(range(data['num_epochs'])):
         ##unfreeze backbone
         if epoch == data['warmup_iters'] -1: 
-            for i, child in enumerate(model.children()):
-                if not i == 1:
-                    for param in child.parameters():
-                        param.requires_grad = True
-        if epoch == data['freeze_triplet_branches']-1:
-            if data['parallel']:
-                    for i, child in enumerate(model.module.transform_net_t.model.children()):
-                        for param in child.parameters():
-                            param.requires_grad = True      
-                    for i, child in enumerate(model.module.SubNet4e5.model.children()):
-                        for param in child.parameters():
-                            param.requires_grad = True 
-            else:
-                    for i, child in enumerate(model.transform_net_t.model.children()):
-                        for param in child.parameters():
-                            param.requires_grad = True      
-                    for i, child in enumerate(model.SubNet4e5.model.children()):
-                        for param in child.parameters():
-                            param.requires_grad = True 
+            for param in model.modelup2L3.parameters():
+                param.requires_grad = True
+            for param in model.modelL4.parameters():
+                param.requires_grad = True
+     
         if epoch == data['epoch_freeze_L1toL3']-1:
             scheduler = make_warmup_scheduler(data['sched_name'],
                                             optimizer,
@@ -282,40 +227,16 @@ if __name__ == "__main__":
                                             last_epoch=-1,
                                             min_lr = data['min_lr']
                                             )
-            if data['parallel']:
-                if data['model_arch'] == "MBR_4G" or data['model_arch'] == "BoT_baseline" or data['model_arch'] == "BOT_2G" or data['model_arch'] == 'MBR_2x2G_B' or data['model_arch'] == 'MBR_2x2G_A' or data['model_arch']=="2x2G_H_NoLSB" or data['model_arch']=="Hybrid_2G" or data['model_arch']=='Hybrid_4G':
-                    for i, child in enumerate(model.module.children()):
-                        if i ==0:
-                            for j, grandson in enumerate(child.children()):
-                                if j <7:
-                                    for param in grandson.parameters():
-                                        param.requires_grad = True   
-                else:
-                    for i, child in enumerate(model.module.globalBranch.model.children()):
-                        if i <7:
-                            for param in child.parameters():
-                                param.requires_grad = True                              
-            else:  
-                if data['model_arch'] == "MBR_4G" or data['model_arch'] == "BoT_baseline" or data['model_arch'] == "BOT_2G" or data['model_arch'] == 'MBR_2x2G_B' or data['model_arch'] == 'MBR_2x2G_A' or data['model_arch']=="2x2G_H_NoLSB" or data['model_arch']=="Hybrid_2G" or data['model_arch']=='Hybrid_4G':
-                    for i, child in enumerate(model.children()):
-                        if i ==0:
-                            for j, grandson in enumerate(child.children()):
-                                if j <7:
-                                    for param in grandson.parameters():
-                                        param.requires_grad = True 
-                else:
-                    for i, child in enumerate(model.globalBranch.model.children()):
-                        if i <7:
-                            for param in child.parameters():
-                                param.requires_grad = True
-
+            for param in model.modelup2L3.parameters():
+                param.requires_grad = True
+            print("\nUnfrozen Backbone before branches!")
+        
    
         ###step schedule
         if epoch >= data['epoch_freeze_L1toL3']-1:              
             scheduler.step()    
-
+        ### Train Loop
         train_loss, c_loss, t_loss, alpha_ce, beta_tri = train_epoch(model, device, data_train, loss_fn, metric_loss, optimizer, data, alpha_ce, beta_tri, logger, epoch, scheduler, scaler)
-        #train_loss, c_loss, t_loss, alpha_ce, beta_tri = train_epoch_side(model, device, data_of_train, loss_fn, metric_loss, optimizer, data, alpha_ce, beta_tri, logger, epoch)
         ###Evaluation
         if epoch%data['validation_period']==0 or epoch>=data['num_epochs']-15:
             cmc, mAP = test_epoch(model, device, data_q, data_g, data['model_arch'], logger, epoch, remove_junk=True, scaler=scaler)
@@ -325,8 +246,3 @@ if __name__ == "__main__":
     print("Best mAP: ", np.max(logger.logscalars['Accuraccy/mAP']))
     print("Best CMC1: ", np.max(logger.logscalars['Accuraccy/CMC1']))
     logger.save_log()   
-         
-
-
-
-
