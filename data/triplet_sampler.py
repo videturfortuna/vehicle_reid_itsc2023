@@ -12,30 +12,12 @@ import torchvision
 
 
 def train_collate_fn(batch):
-    imgs, pids, camids = zip(*batch)#, masks
+    imgs, pids, camids, viewids = zip(*batch)#, masks
     pids = torch.tensor(pids, dtype=torch.int64)
-    return torch.stack(imgs, dim=0), pids, camids#, torch.stack(masks, dim=0)
-
-def train_collate_fn_withMask(batch):
-    imgs, pids, camids, masks = zip(*batch)
-    pids = torch.tensor(pids, dtype=torch.int64)
-    return torch.stack(imgs, dim=0), pids, camids, torch.stack(masks, dim=0)
-
-def train_collate_fn_color_type(batch):
-    imgs, pids, camids, color, type = zip(*batch)#, masks
-    pids = torch.tensor(pids, dtype=torch.int64)
-    color = torch.tensor(color, dtype=torch.int64)
-    type = torch.tensor(type, dtype=torch.int64)
-    return torch.stack(imgs, dim=0), pids, camids, color, type#, torch.stack(masks, dim=0)
-
-
-def train_collate_fn_viewcam_aware(batch):
-    imgs, pids, camids, viewid = zip(*batch)
-    pids = torch.tensor(pids, dtype=torch.int64)
-    viewid = torch.tensor(viewid, dtype=torch.int64)
+    viewids = torch.tensor(viewids, dtype=torch.int64)
     camids = torch.tensor(camids, dtype=torch.int64)
-    return torch.stack(imgs, dim=0), pids, camids, viewid
 
+    return torch.stack(imgs, dim=0), pids, camids, viewids #, torch.stack(masks, dim=0)
 
 
 
@@ -144,7 +126,7 @@ class CustomDataLoader2(Dataset):
         if self.with_view :
             return img, vid, camid, view_id
         else:
-            return img, vid, camid
+            return img, vid, camid, 0
 
 
 
@@ -443,7 +425,7 @@ class CustomDataSet4Veri776(Dataset):
         if self.transform:
             img = self.transform((image.type(torch.FloatTensor))/255.0)
 
-        return img, vid, camid     
+        return img, vid, camid, 0 
 
 
 
@@ -676,6 +658,6 @@ class CustomDataSet4VehicleID(Dataset):
         if self.transform:
             img = self.transform((image.type(torch.FloatTensor))/255.0)
 
-        return img, vid, camid     
+        return img, vid, camid, 0
 
 
