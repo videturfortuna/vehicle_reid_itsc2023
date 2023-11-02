@@ -19,7 +19,7 @@ class Logger(object):
         while os.path.isdir(experience) == True:
             exp+=1
             if data["LAI"]:
-                experience = './logs/' + data['dataset'] +'/'+ data['model_arch'] + 'LAI/' + str(exp)
+                experience = './logs/' + data['dataset'] +'/'+ data['model_arch'] + '_LAI/' + str(exp)
             else:
                 experience = './logs/' + data['dataset'] +'/'+ data['model_arch'] + '/' + str(exp)
         self.logscalars = defaultdict(list)
