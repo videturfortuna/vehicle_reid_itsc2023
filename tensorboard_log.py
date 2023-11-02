@@ -12,10 +12,16 @@ class Logger(object):
 
 
         exp = 0
-        experience =  './logs/' + data['dataset'] +'/'+ data['model_arch'] + '/' + str(exp)
+        if data["LAI"]:
+            experience =  './logs/' + data['dataset'] +'/'+ data['model_arch'] + '_LAI/' + str(exp)
+        else:
+            experience =  './logs/' + data['dataset'] +'/'+ data['model_arch'] + '/' + str(exp)
         while os.path.isdir(experience) == True:
             exp+=1
-            experience = './logs/' + data['dataset'] +'/'+ data['model_arch'] + '/' + str(exp)
+            if data["LAI"]:
+                experience = './logs/' + data['dataset'] +'/'+ data['model_arch'] + 'LAI/' + str(exp)
+            else:
+                experience = './logs/' + data['dataset'] +'/'+ data['model_arch'] + '/' + str(exp)
         self.logscalars = defaultdict(list)
         self.writer = SummaryWriter(experience)
         self.save_embed = save_embed
