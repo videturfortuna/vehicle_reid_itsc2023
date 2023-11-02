@@ -8,6 +8,8 @@ import numpy as np
 import copy
 
 
+
+
 def pdist(vectors):
     distance_matrix = -2 * vectors.mm(torch.t(vectors)) + vectors.pow(2).sum(dim=1).view(1, -1) + vectors.pow(2).sum(
         dim=1).view(-1, 1)
@@ -36,49 +38,6 @@ def weights_init_classifier(m):
         nn.init.normal_(m.weight, std=0.001)
         if m.bias:
             nn.init.constant_(m.bias, 0.0)
-
-
-
-
-class GeneralizedMeanPooling(nn.Module):
-    r"""Applies a 2D power-average adaptive pooling over an input signal composed of several input planes.
-    The function computed is: :math:`f(X) = pow(sum(pow(X, p)), 1/p)`
-        - At p = infinity, one gets Max Pooling
-        - At p = 1, one gets Average Pooling
-    The output is of size H x W, for any input size.
-    The number of output features is equal to the number of input planes.
-    Args:
-        output_size: the target output size of the image of the form H x W.
-                     Can be a tuple (H, W) or a single H for a square image H x H
-                     H and W can be either a ``int``, or ``None`` which means the size will
-                     be the same as that of the input.
-    """
-
-    def __init__(self, norm=3, output_size=(1, 1), eps=1e-6, *args, **kwargs):
-        super(GeneralizedMeanPooling, self).__init__()
-        assert norm > 0
-        self.p = float(norm)
-        self.output_size = output_size
-        self.eps = eps
-
-    def forward(self, x):
-        x = x.clamp(min=self.eps).pow(self.p)
-        return F.adaptive_avg_pool2d(x, self.output_size).pow(1. / self.p)
-
-    def __repr__(self):
-        return self.__class__.__name__ + '(' \
-               + str(self.p) + ', ' \
-               + 'output_size=' + str(self.output_size) + ')'
-
-
-class GeneralizedMeanPoolingP(GeneralizedMeanPooling):
-    """ Same, but norm is trainable
-    """
-
-    def __init__(self, norm=3, output_size=(1, 1), eps=1e-6, *args, **kwargs):
-        super(GeneralizedMeanPoolingP, self).__init__(norm, output_size, eps)
-        self.p = nn.Parameter(torch.ones(1) * norm)
-
 
 
 class MHA(nn.Module):
@@ -181,62 +140,6 @@ class Bottleneck_Transformer(nn.Module):
             out = out + residual
             # out = F.relu(out)
         return out
-
-
-
-#### create conv4-5 Resnet Block with attention as BoTnet
-class botnet_branch_oficial(nn.Module): 
-    def __init__(self, class_num=770, droprate=0.0, linear_num=False, circle=True, use_mlp = False, classifier = True, GeM=False, batnorm=True, branch_layer=3):
-        super(botnet_branch_oficial, self).__init__()
-
-        if branch_layer == 3:
-            layer_0 = Bottleneck_Transformer(1024, 512, resolution=[16, 16], use_mlp = use_mlp)
-            layer_1 = Bottleneck_Transformer(2048, 512, resolution=[16, 16], use_mlp = use_mlp)
-            layer_2 = Bottleneck_Transformer(2048, 512, resolution=[16, 16], use_mlp = use_mlp)
-
-            self.model = nn.Sequential(layer_0, layer_1, layer_2)
-        else:
-            layer_0 = Bottleneck_Transformer(512, 256, resolution=[32, 32], stride=2, use_mlp = use_mlp)
-            layer_1 = Bottleneck_Transformer(1024, 256, resolution=[16, 16], use_mlp = use_mlp)
-            layer_2 = Bottleneck_Transformer(1024, 256, resolution=[16, 16], use_mlp = use_mlp)
-            layer_3 = Bottleneck_Transformer(1024, 256, resolution=[16, 16], use_mlp = use_mlp)
-            layer_4 = Bottleneck_Transformer(1024, 256, resolution=[16, 16], use_mlp = use_mlp)
-            layer_5 = Bottleneck_Transformer(1024, 256, resolution=[16, 16], use_mlp = use_mlp)  
-                      
-            layer_6 = Bottleneck_Transformer(1024, 512, resolution=[16, 16], use_mlp = use_mlp)
-            layer_7 = Bottleneck_Transformer(2048, 512, resolution=[16, 16], use_mlp = use_mlp)
-            layer_8 = Bottleneck_Transformer(2048, 512, resolution=[16, 16], use_mlp = use_mlp)
-
-            self.model = nn.Sequential(layer_0, layer_1, layer_2, layer_3, layer_4, layer_5, layer_6, layer_7, layer_8)            
-        # self.model.apply(weights_init_kaiming) 
-        
-        if GeM:
-            self.avg_pool = GeneralizedMeanPooling()
-        else:
-            self.avg_pool = nn.AdaptiveAvgPool2d((1,1))
-
-        self.cl = classifier
-        if classifier:
-            self.classifier = ClassBlock(2048, class_num, droprate, bnorm=batnorm, linear=linear_num, return_f = circle)
-        else: 
-            self.classifier = nn.BatchNorm1d(2048)
-            self.classifier.bias.requires_grad_(False)  # one model was trained with bias
-            self.classifier.apply(weights_init_kaiming) 
-        
-
-    def forward(self, x):
-        #if self.training:
-        x = self.model(x)
-        emb = self.avg_pool(x).squeeze()
-        if self.cl:
-            pred, emb_n = self.classifier(emb)
-            return  pred, emb_n, emb, x 
-        else:
-            if emb.dim() == 1:
-                emb = emb.unsqueeze(0)
-            emb_n = self.classifier(emb)
-            
-            return None, emb_n, emb, x
 
 
 
@@ -353,15 +256,12 @@ class MHSA_2G(nn.Module):
         x = torch.cat((x_ce, x_t), dim=1)
 
         return x
+    
 
 
 
 class base_branches(nn.Module):
-    def __init__(self, 
-        class_num=30671, droprate=0.0, stride=1, branch_layer=2, circle=True, fdim=None, 
-        linear_num=False, pool = 'GAP', end_BoT=False, splits=4,  no_classifier=False, 
-        backbone='ibn', groups=False, pretrain_ongroups=True, circle_softmax=False, groupnorm=False, 
-        groups_share_L3 = False, end_bot_g=False, n_groups=2, x2_2bg=False, diff_inputs=False, one_arch=False, group_conv_mhsa=False, end_groups=False, end_group_share=False, all2losses=False, group_conv_mhsa_2=False):
+    def __init__(self, backbone="ibn", stride=1):
         super(base_branches, self).__init__()
         if backbone == 'r50':
             model_ft = models.resnet50()
@@ -370,780 +270,281 @@ class base_branches(nn.Module):
         elif backbone == '34ibn':
             model_ft = torch.hub.load('XingangPan/IBN-Net', 'resnet34_ibn_a', pretrained=True)# 'resnet50_ibn_a'
         else:
-            model_ft = torch.hub.load('XingangPan/IBN-Net', 'resnet50_ibn_a', pretrained=True) #ResNet101_Weights.IMAGENET1K_V2
-        
-        assert branch_layer in [0,2,3,4]
-        
-
-        self.groups = groups
-        self.groups_share_L3 = groups_share_L3
-
-        self.x2_2bg = x2_2bg
-        self.diff_inputs = diff_inputs
-        self.end_groups = end_groups
-        self.end_group_share = end_group_share
-        self.all2losses = all2losses
-        if n_groups > 2:
-            self.n_4groups = True
-        else:
-            self.n_4groups = False
-        self.group_conv_mhsa = group_conv_mhsa
-        self.group_conv_mhsa_2 = group_conv_mhsa_2
-
-        if groups:
-            convlist = [k.split('.') for k, m in model_ft.layer4.named_modules(remove_duplicate=False) if isinstance(m, nn.Conv2d)]
-            for item in convlist:
-                if item[1] == "downsample":
-                    m = model_ft.layer4[int(item[0])].get_submodule(item[1])[0]
-                else:
-                    m = model_ft.layer4[int(item[0])].get_submodule(item[1]) #'.'.join(
-                weight = m.weight[:int(m.weight.size(0)), :int(m.weight.size(1)/n_groups), :,:]
-                if end_bot_g and item[1]=="conv2":
-                    setattr(model_ft.layer4[int(item[0])], item[1], MHSA_2G(int(512), int(512)))
-                elif group_conv_mhsa and item[1]=="conv2":
-                    setattr(model_ft.layer4[int(item[0])], item[1], Conv_MHSA_4G(int(512), int(512)))
-                elif group_conv_mhsa_2 and item[1]=="conv2":
-                    setattr(model_ft.layer4[int(item[0])], item[1], Conv_MHSA_2G(int(512), int(512)))
-                else:
-                    if item[1] == "downsample":
-                        getattr(model_ft.layer4[int(item[0])], item[1])[0] = nn.Conv2d(int(m.weight.size(1)), int(m.weight.size(0)), kernel_size=1, stride=1, groups=n_groups, bias=False).apply(weights_init_kaiming)
-                        if pretrain_ongroups:
-                            getattr(model_ft.layer4[int(item[0])], item[1])[0].weight.data = weight
-                    elif item[1] == "conv2":
-                        setattr(model_ft.layer4[int(item[0])], item[1], nn.Conv2d(int(m.weight.size(1)), int(m.weight.size(0)), kernel_size=3, stride=1, padding=(1,1), groups=n_groups, bias=False).apply(weights_init_kaiming))
-                        if pretrain_ongroups:
-                            setattr(model_ft.layer4[int(item[0])].get_submodule(item[1]).weight, "data", weight)                        
-                    else:
-                        setattr(model_ft.layer4[int(item[0])], item[1], nn.Conv2d(int(m.weight.size(1)), int(m.weight.size(0)), kernel_size=1, stride=1, groups=n_groups, bias=False).apply(weights_init_kaiming))
-                        if pretrain_ongroups:
-                            setattr(model_ft.layer4[int(item[0])].get_submodule(item[1]).weight, "data", weight)
-
-        if x2_2bg or diff_inputs:
-            if one_arch:
-                self.replica_bot_l4 = copy.deepcopy(model_ft.layer4)
-            else:
-                self.replica_bot_l4 = copy.deepcopy(model_ft.layer4)
-                self.replica_bot_l4[0].conv2 = MHSA_2G(int(512),int(512))
-                self.replica_bot_l4[1].conv2 = MHSA_2G(int(512),int(512))
-                self.replica_bot_l4[2].conv2 = MHSA_2G(int(512),int(512))
-
-        # avg pooling to global pooling
-        model_ft.layer4[0].downsample[0].stride = (stride,stride)
-        model_ft.layer4[0].conv2.stride = (stride,stride)
+            model_ft = torch.hub.load('XingangPan/IBN-Net', 'resnet50_ibn_a', pretrained=True)
+            
         if stride == 1:
             model_ft.layer4[0].downsample[0].stride = (1,1)
             if backbone == "34ibn":
                 model_ft.layer4[0].conv1.stride = (1,1)
             else:
                 model_ft.layer4[0].conv2.stride = (1,1)
-        if pool =='GeM':
-            model_ft.avgpool = GeneralizedMeanPooling()
-        elif pool =='GeMP':
-            model_ft.avgpool = GeneralizedMeanPoolingP()
-        else:
-            model_ft.avgpool = nn.AdaptiveAvgPool2d((1,1))
-        self.pool = pool
 
-        # -1 no fully connected, up to layer 3: -2, up to layer 2: -3
-        model_ft = torch.nn.Sequential(*(list(model_ft.children())[:-1])) 
-
-
-        if end_BoT:
-            layer_0 = Bottleneck_Transformer(1024, 512, resolution=[16, 16], use_mlp = False)
-            layer_1 = Bottleneck_Transformer(2048, 512, resolution=[16, 16], use_mlp = False)
-            layer_2 = Bottleneck_Transformer(2048, 512, resolution=[16, 16], use_mlp = False)
-            tmp = nn.Sequential(layer_0, layer_1, layer_2)
-            model_ft[7] = tmp
-
-        self.model = model_ft
-        self.branch_layer = branch_layer
-
-
-        if branch_layer == 4:
-            self.classifier = ClassBlock(2048, class_num, droprate, final_dim=fdim, linear=linear_num, return_f = circle, circle=circle_softmax)
-            self.classifier_t = nn.Linear(2048, 1024)
-            self.classifier_t.apply(weights_init_kaiming)
-            self.nnbatchnormvector= nn.BatchNorm1d(1024)
-            self.nnbatchnormvector.bias.requires_grad_(False)  
-            self.nnbatchnormvector.apply(weights_init_kaiming)
-        else:
-            if pool == 'HMP':
-                self.classifier =  nn.ModuleList()
-                for i in range(splits):
-                    self.classifier.append(ClassBlock(512, class_num, droprate, linear=linear_num, return_f = circle))
-            else:
-                if no_classifier:
-                    self.no_classifier = no_classifier
-                else:
-                    self.no_classifier = False
-                    if groups:
-                        if n_groups == 4:
-                            if self.all2losses:
-                                self.classifier_1 = ClassBlock(512, class_num, droprate, linear=linear_num, return_f = circle, circle=circle_softmax)
-                                self.classifier_2 = ClassBlock(512, class_num, droprate, linear=linear_num, return_f = circle, circle=circle_softmax)
-                                self.classifier_3 = ClassBlock(512, class_num, droprate, linear=linear_num, return_f = circle, circle=circle_softmax)
-                                self.classifier_4 = ClassBlock(512, class_num, droprate, linear=linear_num, return_f = circle, circle=circle_softmax) 
-                            else:
-                                self.classifier_1 = ClassBlock(512, class_num, droprate, linear=linear_num, return_f = circle, circle=circle_softmax)
-                                self.classifier_2 = ClassBlock(512, class_num, droprate, linear=linear_num, return_f = circle, circle=circle_softmax)  
-                                self.bn1= nn.BatchNorm1d(int(512))    
-                                self.bn1.bias.requires_grad_(False)  
-                                self.bn1.apply(weights_init_kaiming)
-                                self.bn2= nn.BatchNorm1d(int(512))
-                                self.bn2.bias.requires_grad_(False)  
-                                self.bn2.apply(weights_init_kaiming)                                                                            
-                        elif x2_2bg or diff_inputs:
-                            if self.group_conv_mhsa_2 or self.all2losses:
-                                self.classifier_1 = ClassBlock(1024, class_num, droprate, linear=linear_num, return_f = circle, circle=circle_softmax)
-                                self.classifier_2 = ClassBlock(1024, class_num, droprate, linear=linear_num, return_f = circle, circle=circle_softmax)
-                                self.classifier_3 = ClassBlock(1024, class_num, droprate, linear=linear_num, return_f = circle, circle=circle_softmax)
-                                self.classifier_4 = ClassBlock(1024, class_num, droprate, linear=linear_num, return_f = circle, circle=circle_softmax)   
-                            else:
-                                self.classifier_1 = ClassBlock(int(1024), class_num, droprate, linear=linear_num, return_f = circle, circle=circle_softmax)
-                                self.bn1= nn.BatchNorm1d(int(1024))
-                                self.bn1.bias.requires_grad_(False)  
-                                self.bn1.apply(weights_init_kaiming)
-                                self.classifier_2 = ClassBlock(int(1024), class_num, droprate, linear=linear_num, return_f = circle, circle=circle_softmax)
-                                self.bn2= nn.BatchNorm1d(int(1024))
-                                self.bn2.bias.requires_grad_(False)  
-                                self.bn2.apply(weights_init_kaiming)
-                        elif self.all2losses:
-                            self.classifier_1 = ClassBlock(1024, class_num, droprate, linear=linear_num, return_f = circle, circle=circle_softmax)
-                            self.classifier_2 = ClassBlock(1024, class_num, droprate, linear=linear_num, return_f = circle, circle=circle_softmax)
-                        else:
-                            self.bn1= nn.BatchNorm1d(1024)
-                            self.bn1.bias.requires_grad_(False)  
-                            self.bn1.apply(weights_init_kaiming)
-                            self.classifier = ClassBlock(1024, class_num, droprate, linear=linear_num, return_f = circle, circle=circle_softmax)
-                    else:
-                        if backbone=="34ibn":
-                            self.classifier = ClassBlock(512, class_num, droprate, linear=linear_num, return_f = circle, circle=circle_softmax) 
-                        else:
-                            self.classifier = ClassBlock(2048, class_num, droprate, linear=linear_num, return_f = circle, circle=circle_softmax)  
+        self.model = torch.nn.Sequential(*(list(model_ft.children())[:-3])) 
 
     def forward(self, x):
-        x = self.model[0](x)
-        x = self.model[1](x)
-        x = self.model[2](x)
-        x = self.model[3](x)
-        x = self.model[4](x)
-        if self.branch_layer == 2:
-            mix = self.model[5](x)
-            x = self.model[6](mix)
-            activations = self.model[7](x)
-        elif self.branch_layer == 3:
-            x = self.model[5](x)
-            mix = self.model[6](x)
-            activations = self.model[7](mix)
-        else:
-            x = self.model[5](x)
-            mix = self.model[6](x)
-            if self.diff_inputs:
-                half = int(mix.size(1)/2)
-                half_mix_2 = mix[:,half:,:,:]
-                half_mix_2 = torch.cat((half_mix_2, half_mix_2), 1)
-                activations = self.model[7](half_mix_2)
-            else:
-                activations = self.model[7](mix)
-        x = self.model[8](activations)
-
-        emb = x.view(x.size(0), x.size(1))
-
-        if self.no_classifier:
-            return emb, activations, mix
-        else:
-            if self.groups:
-                if self.n_4groups:
-                    if self.all2losses:
-                        half = int(emb.size(1)/2)
-                        quarter = int(emb.size(1)/4)
-                        emb_cet_1 = emb[:, :quarter]
-                        emb_cet_2 = emb[:, quarter:half]
-                        emb_cet_3 = emb[:, half:half+quarter]
-                        emb_cet_4 = emb[:, half+quarter:]                        
-                        x , f = self.classifier_1(emb_cet_1)
-                        x_2 , f_2 = self.classifier_2(emb_cet_2)
-                        x_3 , f_3 = self.classifier_3(emb_cet_3)
-                        x_4 , f_4 = self.classifier_4(emb_cet_4)
-
-                        return [[x, x_3, x_2, x_4], [emb_cet_1, emb_cet_3, emb_cet_2, emb_cet_4], [f, f_2, f_3, f_4], [activations[:,:quarter,:,:], activations[:,quarter:half,:,:], activations[:,half:half+quarter,:,:], activations[:,half+quarter:,:,:]]]
-                    
-                    else:
-                        half = int(emb.size(1)/2)
-                        quarter = int(emb.size(1)/4)
-                        emb_cet_1 = emb[:, :quarter]
-                        emb_cet_2 = emb[:, quarter:half]
-                        emb_cet_3 = emb[:, half:half+quarter]
-                        emb_cet_4 = emb[:, half+quarter:]  
-
-                        x_1 , f_1 = self.classifier_1(emb_cet_1)
-                        x_3 , f_3 = self.classifier_2(emb_cet_3)
-                        ff_2 = self.bn1(emb_cet_2) 
-                        ff_4 = self.bn2(emb_cet_4) 
-
-                        return [[x_1,x_3], [emb_cet_2, emb_cet_4], [f_1, ff_2, f_3, ff_4], [activations[:,:quarter,:,:], activations[:,quarter:half,:,:], activations[:,half:half+quarter,:,:], ff_4, emb_cet_4, activations[:,half+quarter:,:,:]]]
-                        
-                elif self.x2_2bg:
-                    half = int(emb.size(1)/2)
-                    activ_bot = self.replica_bot_l4(mix)
-                    emb_bot = self.model[8](activ_bot)
-                    emb_bot = emb_bot.view(emb_bot.size(0), emb_bot.size(1))
-
-                    emb_bot_ce = emb_bot[:, :half]
-                    emb_bot_t = emb_bot[:, half:]
-                    emb_r50_ce = emb[:, :half]
-                    emb_r50_t = emb[:, half:]
-
-                    f_r50_t = self.bn1(emb_r50_t)
-                    f_bot_t = self.bn2(emb_bot_t)
-
-                    x_1 , f_1 = self.classifier_1(emb_r50_ce)
-                    x_2 , f_2 = self.classifier_2(emb_bot_ce)
-
-                    return [[x_1, x_2], [emb_r50_t, emb_bot_t], [f_1, f_r50_t, f_2, f_bot_t], [activations[:,:half,:,:], activations[:,half:,:,:], activ_bot[:,:half,:,:], activ_bot[:,half:,:,:]]]
-                    
-                elif self.diff_inputs:
-                    if self.group_conv_mhsa_2 or self.all2losses:
-                        half = int(mix.size(1)/2)
-                        half_mix_1 = mix[:,:half,:,:]
-                        half_mix_1 = torch.cat((half_mix_1, half_mix_1), 1)
-                        activ_bot = self.replica_bot_l4(half_mix_1)
-                        emb_bot = self.model[8](activ_bot)
-                        emb_bot = emb_bot.view(emb_bot.size(0), emb_bot.size(1))
-
-                        half_emb = int(emb.size(1)/2)
-                        emb_cet_1 = emb_bot[:, :half_emb]  #r50
-                        emb_cet_2 = emb_bot[:, half_emb:]  #bot
-                        emb_cet_3 = emb[:, :half_emb]      #r50
-                        emb_cet_4 = emb[:, half_emb:]      #bot
-
-                        x , f = self.classifier_1(emb_cet_1)
-                        x_2 , f_2 = self.classifier_2(emb_cet_2)
-                        x_3 , f_3 = self.classifier_3(emb_cet_3)
-                        x_4 , f_4 = self.classifier_4(emb_cet_4)
-
-                        return [[x, x_2, x_3, x_4], [emb_cet_1, emb_cet_2, emb_cet_3, emb_cet_4], [f, f_2, f_3, f_4], [activations[:,:half_emb,:,:], activations[:,half_emb:,:,:], activ_bot[:,:half_emb,:,:], activ_bot[:,half_emb:,:,:]]]
-                    else:
-                        half = int(mix.size(1)/2)
-                        half_mix_1 = mix[:,:half,:,:]
-                        half_mix_1 = torch.cat((half_mix_1, half_mix_1), 1)
-                        
-
-                        activ_bot = self.replica_bot_l4(half_mix_1)
-                        emb_bot = self.model[8](activ_bot)
-                        emb_bot = emb_bot.view(emb_bot.size(0), emb_bot.size(1))
-
-                        half_emb = int(emb.size(1)/2)
-
-                        emb_bot_ce = emb_bot[:, :half_emb]
-                        emb_bot_t = emb_bot[:, half_emb:]
-                        emb_r50_ce = emb[:, :half_emb]
-                        emb_r50_t = emb[:, half_emb:]
-
-                        f_r50_t = self.bn1(emb_r50_t)
-                        f_bot_t = self.bn2(emb_bot_t)
-
-                        x_1 , f_1 = self.classifier_1(emb_r50_ce)
-                        x_2 , f_2 = self.classifier_2(emb_bot_ce)
-
-                        return[[x_1, x_2], [emb_r50_t, emb_bot_t], [f_1, f_2, f_r50_t, f_bot_t], [activations[:,:half_emb,:,:], activations[:,half_emb:,:,:], activ_bot[:,:half_emb,:,:], activ_bot[:,half_emb:,:,:]]]                       
-                elif self.all2losses:
-                    half = int(emb.size(1)/2)
-                    emb_cet_1 = emb[:, :half]
-                    emb_cet_2 = emb[:, half:]
-                    x , f = self.classifier_1(emb_cet_1)
-                    x_2 , f_2 = self.classifier_2(emb_cet_2)
-
-                    return [[x, x_2], [emb_cet_1, emb_cet_2], [f, f_2], [activations[:,:half,:,:], activations[:,half:,:,:]]]                    
-                else:
-                    half = int(emb.size(1)/2)
-                    emb_ce = emb[:, :half]
-                    emb_t = emb[:, half:]
-                    x , f = self.classifier(emb_ce)
-                    fn_t = self.bn1(emb_t)
-   
-                    return [[x], [emb_t], [f, fn_t], [activations[:,:half,:,:], activations[:,half:,:,:]]]
-            else:
-                x , f = self.classifier(emb)
-        if self.branch_layer == 4:
-            ft = self.classifier_t(emb)
-            ft_n = self.nnbatchnormvector(ft)
-
-            return x, f, emb, activations, mix, ft, ft_n
-
-        return x, f, emb, activations, mix
-
-
-class ResNet_IBNa_blocks_4e5(nn.Module):
-    def __init__(self, stride=1, branch_layer = 3, pool = 'GAP', linear_num=False, end_BoT=False, backbone='ibn', classifier=False, n_classes=0):
-        super(ResNet_IBNa_blocks_4e5, self).__init__()
-        #model_ft = models.resnet50(pretrained=True)
-        assert branch_layer in [2,3]
-        if backbone == 'ibn':
-            model_ft = torch.hub.load('XingangPan/IBN-Net', 'resnet50_ibn_a', pretrained=True) # 'resnet50_ibn_a'
-        else:
-            model_ft = models.resnet50(weights="IMAGENET1K_V2")
-        # avg pooling to global pooling
-        if stride == 1:
-            model_ft.layer4[0].downsample[0].stride = (1,1)
-            model_ft.layer4[0].conv2.stride = (1,1)
-        if pool=="GeM":
-            model_ft.avgpool = GeneralizedMeanPooling()
-        elif pool =='GeMP':
-            model_ft.avgpool = GeneralizedMeanPoolingP()
-        else:
-            model_ft.avgpool = nn.AdaptiveAvgPool2d((1,1))
-        if branch_layer == 2:
-            model_ft = torch.nn.Sequential(*(list(model_ft.children())[6:-1])) 
-        if branch_layer == 3:
-            if linear_num:
-                model_ft = torch.nn.Sequential(*(list(model_ft.children())[7:-1]), nn.ModuleList([nn.Linear(2048, 2048).apply(weights_init_kaiming), nn.ReLU(), nn.Linear(2048, linear_num).apply(weights_init_kaiming)]))
-            else:
-                model_ft = torch.nn.Sequential(*(list(model_ft.children())[7:-1]))    
-        if end_BoT:
-            model_ft[0][0].conv2 = MHSA(512, width=16, height=16, heads=4).apply(weights_init_kaiming)
-            model_ft[0][0].bn2 = nn.BatchNorm2d(512).apply(weights_init_kaiming)
-            model_ft[0][1].conv2 = MHSA(512, width=16, height=16, heads=4).apply(weights_init_kaiming)
-            model_ft[0][1].bn2 = nn.BatchNorm2d(512).apply(weights_init_kaiming)
-            model_ft[0][2].conv2 = MHSA(512, width=16, height=16, heads=4).apply(weights_init_kaiming)
-            model_ft[0][2].bn2 = nn.BatchNorm2d(512).apply(weights_init_kaiming)             
-        self.model = model_ft
-        self.classes = classifier
-
-        
-        if classifier:
-            self.classifier = ClassBlock(2048, n_classes, 0, linear=linear_num, return_f = True)
-        else:
-            self.nnbatchnormvector= nn.BatchNorm1d(2048)
-            self.nnbatchnormvector.bias.requires_grad_(False)  # no shift
-            self.nnbatchnormvector.apply(weights_init_kaiming)
-
-        self.branch_layer = branch_layer
-
-     
-
-        
-    def _forward_impl(self, x: Tensor) -> Tensor:
-
-        if self.branch_layer == 2:
-            x = self.model[0](x)
-            activations = self.model[1](x)
-        if self.branch_layer == 3:
-            activations = self.model[0](x)
-        if self.branch_layer == 2:
-            x = self.model[2](activations)
-        if self.branch_layer == 3:
-            x = self.model[1](activations)
-        emb = torch.flatten(x, 1)
-        if self.classes:
-            pred, f = self.classifier(emb)
-            return pred, f, emb, activations
-
-        f = self.nnbatchnormvector(emb)
-        return f, emb, activations
-    
-    def forward(self, x: Tensor) -> Tensor:
-        return self._forward_impl(x)
-
-
-
-
-
-class reid_doublebranch_loss_split_BoT(nn.Module):
-
-    def __init__(self, ft_net, subnet):
-        super(reid_doublebranch_loss_split_BoT, self).__init__()
-
-        self.globalBranch = ft_net
-        self.SubNet4e5 = subnet
-        
-
-    def forward(self, x):
-
-        pred, f, emb, activations, mix = self.globalBranch(x)
-
-        none ,f_s, emb_s, activations_triplet = self.SubNet4e5(mix)
-
-        return [[pred], [emb_s], [f,f_s], [activations, activations_triplet]]
-
-
-
-
-class reid_doublebranch(nn.Module):
-
-    def __init__(self, ft_net, subnet):
-        super(reid_doublebranch, self).__init__()
-
-        self.globalBranch = ft_net
-        self.SubNet4e5 = subnet
-        
-
-    def forward(self, x):
-
-        pred, f, emb, activations, mix = self.globalBranch(x)
-
-        f_s, emb_s, activations_triplet = self.SubNet4e5(mix)
-
-        return [[pred], [emb_s], [f, f_s], [activations, activations_triplet]]
-
-
-
-class reid_baseline_2B_trans(nn.Module):
-    def __init__(self, res50, transformerB):
-        super(reid_baseline_2B_trans, self).__init__()
-
-        self.globalBranch = res50
-        self.transform_net = transformerB
-
-    def forward(self, x):
-
-        pred, f, emb, activations, mix = self.globalBranch(x)
-        pred_t, emb_n_t, emb_t, trans_activ = self.transform_net(mix)
-
-        return [[pred, pred_t], [emb, emb_t], [f, emb_n_t], [activations, trans_activ]]
-
-
-
-
-
-
-
-class reid_baseline_2B(nn.Module):
-    def __init__(self, res50, transformerB):
-        super(reid_baseline_2B, self).__init__()
-
-        self.globalBranch = res50
-        self.SubNet4e5 = transformerB
-
-    def forward(self, x):
-
-        pred, f, emb, activations, mix = self.globalBranch(x)
-        pred_s, f_s, emb_s, activations_subnet = self.SubNet4e5(mix)
-
-        return [[pred, pred_s], [emb, emb_s], [f, f_s], [activations, activations_subnet]]       
-
-
-
-class reid_4B_bothlosses(nn.Module):
-    def __init__(self, ft_net, subnet, t_branch, t_t_branch):
-        super(reid_4B_bothlosses, self).__init__()
-
-        self.globalBranch = ft_net
-        self.SubNet4e5 = subnet
-        self.transform_net = t_branch
-        self.transform_net_t = t_t_branch
-
-
-    def forward(self, x):
-        pred_1, f_1, emb_1, activations_1, mix = self.globalBranch(x)
-
-        pred_2, f_2, emb_2, activations_2 = self.SubNet4e5(mix)
-
-        pred_3, f_3, emb_3, activations_3 = self.transform_net(mix)
-
-        pred_4, f_4, emb_4, activations_4= self.transform_net_t(mix)
-
-        return [[pred_1, pred_3, pred_2, pred_4], [emb_1, emb_3, emb_2, emb_4], [f_1, f_2, f_3, f_4],[activations_1, activations_2, activations_3, activations_4]]
-
-    
-class reid_4B_split_losses(nn.Module):
-    def __init__(self, ft_net, subnet, t_branch, t_t_branch):
-        super(reid_4B_split_losses, self).__init__()
-
-        self.globalBranch = ft_net
-        self.SubNet4e5 = subnet
-        self.transform_net = t_branch
-        self.transform_net_t = t_t_branch
-
-
-    def forward(self, x):
-        pred_1, f_1, emb_1, activations_1, mix = self.globalBranch(x)
-
-        f_2, emb_2, activations_2 = self.SubNet4e5(mix)
-
-        pred_3, f_3, emb_3, activations_3 = self.transform_net(mix)
-
-        f_4, emb_4, activations_4 = self.transform_net_t(mix)
-
-        return [[pred_1, pred_3], [emb_2, emb_4], [f_1, f_2, f_3, f_4], [activations_1, activations_2, activations_3, activations_4]]
-
-
-
-
-class reid_4B(nn.Module):
-    def __init__(self, ft_net, subnet, t_branch, t_t_branch):
-        super(reid_4B, self).__init__()
-
-        self.globalBranch = ft_net
-        self.SubNet4e5 = subnet
-        self.transform_net = t_branch
-        self.transform_net_t = t_t_branch
-
-
-    def forward(self, x):
-        pred, f, emb, activations, mix = self.globalBranch(x)
-
-        f_s, emb_s, activations_triplet = self.SubNet4e5(mix)
-
-        pred_t, emb_n_t, emb_t, trans_activ_ce = self.transform_net(mix)
-
-        pred_t_t, fn_t_bot, emb_t_bot, trans_activ_t = self.transform_net_t(mix)
-
-        return [[pred, pred_t], [emb_s, emb_t_bot], [f, f_s, emb_n_t, fn_t_bot], [activations, activations_triplet, trans_activ_ce, trans_activ_t]]
-
-    
-
-# class reid_4B_LAI(nn.Module):
-#     def __init__(self, ft_net, subnet, t_branch, bot_t_branch, n_cams=20, n_views=0):
-#         super(reid_4B_LAI, self).__init__()
-
-#         self.globalBranch = ft_net
-#         self.SubNet4e5 = subnet
-#         self.transform_net = t_branch
-#         self.transform_net_t = bot_t_branch
-#         if n_views > 0 and n_cams > 0:
-#             self.camview = 'camview'
-#         elif n_views > 0:
-#             self.camview = 'view'
-#         else:
-#             self.camview = 'cam'
-
-#         if self.camview == 'camview':
-#             self.sie_embed_ce = nn.Parameter(torch.zeros(n_cams * n_views, 2048))
-#             self.sie_embed_t = nn.Parameter(torch.zeros(n_cams * n_views, 2048))
-#             self.sie_embed_t_ce = nn.Parameter(torch.zeros(n_cams * n_views, 2048))
-#             self.sie_embed_bot_t = nn.Parameter(torch.zeros(n_cams * n_views, 2048))
-#             self.n_views = n_views
-#         elif self.camview == 'view':
-#             self.sie_embed_ce = nn.Parameter(torch.zeros(n_views, 2048))
-#             self.sie_embed_t = nn.Parameter(torch.zeros(n_views, 2048))
-#             self.sie_embed_t_ce = nn.Parameter(torch.zeros(n_views, 2048))  
-#             self.sie_embed_bot_t = nn.Parameter(torch.zeros(n_views, 2048))
-#         else:
-#             self.sie_embed_ce = nn.Parameter(torch.zeros(n_cams, 2048))
-#             self.sie_embed_t = nn.Parameter(torch.zeros(n_cams, 2048))
-#             self.sie_embed_t_ce = nn.Parameter(torch.zeros(n_cams, 2048))
-#             self.sie_embed_bot_t = nn.Parameter(torch.zeros(n_cams, 2048))
-
-#     def forward(self, x, cams, view):
-
-#         if self.camview == 'camview':
-#             sie_ce = self.sie_embed_ce[cams * self.n_views + view]
-#             sie_t = self.sie_embed_t[cams * self.n_views + view]
-#             sie_t_ce = self.sie_embed_t_ce[cams * self.n_views + view]
-#             sie_bot_t = self.sie_embed_bot_t[cams * self.n_views + view]
-#         elif self.camview == 'view':   
-#             sie_ce = self.sie_embed_ce[view]
-#             sie_t = self.sie_embed_t[view]
-#             sie_t_ce = self.sie_embed_t_ce[view]
-#             sie_bot_t = self.sie_embed_bot_t[view]
-#         else:    
-#             sie_ce = self.sie_embed_ce[cams]
-#             sie_t = self.sie_embed_t[cams]
-#             sie_t_ce = self.sie_embed_t_ce[cams]
-#             sie_bot_t = self.sie_embed_bot_t[cams]
-
-#         pred, f, emb, activations, mix = self.globalBranch(x, sie_ce)
-
-#         f_s, emb_s, activations_triplet = self.SubNet4e5(mix, sie_t)
-
-#         pred_t, emb_n_t, emb_t, trans_activ_ce = self.transform_net(mix, sie_t_ce)
-
-#         pred_t_t, fn_t_bot, emb_t_bot, trans_activ_t = self.transform_net_t(mix, sie_bot_t)
-
-#         return pred, f, emb, f_s, emb_s, activations, activations_triplet, pred_t, emb_n_t, emb_t, fn_t_bot, emb_t_bot, trans_activ_ce, trans_activ_t
-
-
-
-class reid_LAI_4BG(nn.Module):
-    def __init__(self, ft_net, n_cams=20, n_views=0):
-        super(reid_LAI_4BG, self).__init__()
-
-        self.globalBranch = ft_net
-
-        if n_views > 0 and n_cams > 0:
-            self.camview = 'camview'
-        elif n_views > 0:
-            self.camview = 'view'
-        else:
-            self.camview = 'cam'
-
-        if self.camview == 'camview':
-            self.sie_embed_ce = nn.Parameter(torch.zeros(n_cams * n_views, 512))
-            self.sie_embed_t = nn.Parameter(torch.zeros(n_cams * n_views, 512))
-            self.sie_embed_t_ce = nn.Parameter(torch.zeros(n_cams * n_views, 512))
-            self.sie_embed_bot_t = nn.Parameter(torch.zeros(n_cams * n_views, 512))
-            self.n_views = n_views
-        elif self.camview == 'view':
-            self.sie_embed_ce = nn.Parameter(torch.zeros(n_views, 512))
-            self.sie_embed_t = nn.Parameter(torch.zeros(n_views, 512))
-            self.sie_embed_t_ce = nn.Parameter(torch.zeros(n_views, 512))  
-            self.sie_embed_bot_t = nn.Parameter(torch.zeros(n_views, 512))
-        else:
-            self.sie_embed_ce = nn.Parameter(torch.zeros(n_cams, 512))
-            self.sie_embed_t = nn.Parameter(torch.zeros(n_cams, 512))
-            self.sie_embed_t_ce = nn.Parameter(torch.zeros(n_cams, 512))
-            self.sie_embed_bot_t = nn.Parameter(torch.zeros(n_cams, 512))
-
-    def forward(self, x, cams, view):
-
-        if self.camview == 'camview':
-            sie_ce = self.sie_embed_ce[cams * self.n_views + view]
-            sie_t = self.sie_embed_t[cams * self.n_views + view]
-            sie_t_ce = self.sie_embed_t_ce[cams * self.n_views + view]
-            sie_bot_t = self.sie_embed_bot_t[cams * self.n_views + view]
-        elif self.camview == 'view':   
-            sie_ce = self.sie_embed_ce[view]
-            sie_t = self.sie_embed_t[view]
-            sie_t_ce = self.sie_embed_t_ce[view]
-            sie_bot_t = self.sie_embed_bot_t[view]
-        else:    
-            sie_ce = self.sie_embed_ce[cams]
-            sie_t = self.sie_embed_t[cams]
-            sie_t_ce = self.sie_embed_t_ce[cams]
-            sie_bot_t = self.sie_embed_bot_t[cams]
-
-        side = torch.cat((sie_ce, sie_t, sie_t_ce, sie_bot_t),dim=1)
-        pred, f, emb, f_s, emb_s, activations, activations_triplet, pred_t, emb_n_t, emb_t, fn_t_bot, emb_t_bot, trans_activ_ce, trans_activ_t = self.globalBranch(x, side)
-
-        return pred, f, emb, f_s, emb_s, activations, activations_triplet, pred_t, emb_n_t, emb_t, fn_t_bot, emb_t_bot, trans_activ_ce, trans_activ_t
-
-
-
-#### create conv4-5 Resnet Block with attention as BoTnet
-class botnet_branch_oficial_side(nn.Module): 
-    def __init__(self, class_num=770, droprate=0.0, linear_num=False, circle=True, use_mlp = False, classifier = True, GeM=False):
-        super(botnet_branch_oficial_side, self).__init__()
-
-        layer_0 = Bottleneck_Transformer(1024, 512, resolution=[16, 16], use_mlp = use_mlp)
-        layer_1 = Bottleneck_Transformer(2048, 512, resolution=[16, 16], use_mlp = use_mlp)
-        layer_2 = Bottleneck_Transformer(2048, 512, resolution=[16, 16], use_mlp = use_mlp)
-
-        self.model = nn.Sequential(layer_0, layer_1, layer_2)
-
-        if GeM:
-            self.avg_pool = GeneralizedMeanPooling()
-        else:
-            self.avg_pool = nn.AdaptiveAvgPool2d((1,1))
-
-        self.cl = classifier
-        if classifier:
-            self.classifier = ClassBlock(2048, class_num, droprate, linear=linear_num, return_f = circle)
-        else: 
-            self.classifier = nn.BatchNorm1d(2048)
-            self.classifier.bias.requires_grad_(False)  # no shift
-            self.classifier.apply(weights_init_kaiming) 
-        
-
-    def forward(self, x, side):
-        #if self.training:
         x = self.model(x)
-        emb = self.avg_pool(x).squeeze()
-        emb = emb + side
-        if self.cl:
-            pred, emb_n = self.classifier(emb)
-            return  pred, emb_n, emb, x 
-        else:
-            emb_n = self.classifier(emb)
-            return None, emb_n, emb, x
-
-
-
-
-
-
-class reid_MultiBranch_transformer_side(nn.Module):
-    def __init__(self, ft_net, subnet, t_branch, n_cams=20, n_views=0):
-        super(reid_MultiBranch_transformer_side, self).__init__()
-
-        self.globalBranch = ft_net
-        self.SubNet4e5 = subnet
-        self.transform_net = t_branch
-        if n_views > 0 and n_cams > 0:
-            self.camview = 'camview'
-        elif n_views > 0:
-            self.camview = 'view'
-        else:
-            self.camview = 'cam'
-
-        if self.camview == 'camview':
-            self.sie_embed_ce = nn.Parameter(torch.zeros(n_cams * n_views, 2048))
-            self.sie_embed_t = nn.Parameter(torch.zeros(n_cams * n_views, 2048))
-            self.sie_embed_t_ce = nn.Parameter(torch.zeros(n_cams * n_views, 2048))
-            self.n_views = n_views
-        elif self.camview == 'view':
-            self.sie_embed_ce = nn.Parameter(torch.zeros(n_views, 2048))
-            self.sie_embed_t = nn.Parameter(torch.zeros(n_views, 2048))
-            self.sie_embed_t_ce = nn.Parameter(torch.zeros(n_views, 2048))  
-        else:
-            self.sie_embed_ce = nn.Parameter(torch.zeros(n_cams, 2048))
-            self.sie_embed_t = nn.Parameter(torch.zeros(n_cams, 2048))
-            self.sie_embed_t_ce = nn.Parameter(torch.zeros(n_cams, 2048))
-
-    def forward(self, x, cams, view):
-
-        if self.camview == 'camview':
-            sie_ce = self.sie_embed_ce[cams * self.n_views + view]
-            sie_t = self.sie_embed_t[cams * self.n_views + view]
-            sie_t_ce = self.sie_embed_t_ce[cams * self.n_views + view]
-        elif self.camview == 'view':   
-            sie_ce = self.sie_embed_ce[view]
-            sie_t = self.sie_embed_t[view]
-            sie_t_ce = self.sie_embed_t_ce[view]
-        else:    
-            sie_ce = self.sie_embed_ce[cams]
-            sie_t = self.sie_embed_t[cams]
-            sie_t_ce = self.sie_embed_t_ce[cams]
-
-        pred, f, emb, activations, mix = self.globalBranch(x, sie_ce)
-
-        f_s, emb_s, activations_triplet = self.SubNet4e5(mix, sie_t)
-
-        pred_t, emb_n_t, emb_t, trans_activ = self.transform_net(mix, sie_t_ce)
-
-        return pred, f, emb, activations, mix, f_s, emb_s, activations_triplet, pred_t, emb_n_t, emb_t, trans_activ
+        return x
     
+class multi_branches(nn.Module):
+    def __init__(self, n_branches, n_groups, pretrain_ongroups=True, end_bot_g=False, group_conv_mhsa=False, group_conv_mhsa_2=False, x2g = False, x4g=False):
+        super(multi_branches, self).__init__()
 
+        model_ft = torch.hub.load('XingangPan/IBN-Net', 'resnet50_ibn_a', pretrained=True)
+        model_ft= model_ft.layer4
+        self.x2g = x2g
+        self.x4g = x4g
+        if n_groups > 0:
+            convlist = [k.split('.') for k, m in model_ft.named_modules(remove_duplicate=False) if isinstance(m, nn.Conv2d)]
+            for item in convlist:
+                if item[1] == "downsample":
+                    m = model_ft[int(item[0])].get_submodule(item[1])[0]
+                else:
+                    m = model_ft[int(item[0])].get_submodule(item[1]) #'.'.join(
+                weight = m.weight[:int(m.weight.size(0)), :int(m.weight.size(1)/n_groups), :,:]
+                if end_bot_g and item[1]=="conv2":
+                    setattr(model_ft[int(item[0])], item[1], MHSA_2G(int(512), int(512)))
+                elif group_conv_mhsa and item[1]=="conv2":
+                    setattr(model_ft[int(item[0])], item[1], Conv_MHSA_4G(int(512), int(512)))
+                elif group_conv_mhsa_2 and item[1]=="conv2":
+                    setattr(model_ft[int(item[0])], item[1], Conv_MHSA_2G(int(512), int(512)))
+                else:
+                    if item[1] == "downsample":
+                        getattr(model_ft[int(item[0])], item[1])[0] = nn.Conv2d(int(m.weight.size(1)), int(m.weight.size(0)), kernel_size=1, stride=1, groups=n_groups, bias=False).apply(weights_init_kaiming)
+                        if pretrain_ongroups:
+                            getattr(model_ft[int(item[0])], item[1])[0].weight.data = weight
+                    elif item[1] == "conv2":
+                        setattr(model_ft[int(item[0])], item[1], nn.Conv2d(int(m.weight.size(1)), int(m.weight.size(0)), kernel_size=3, stride=1, padding=(1,1), groups=n_groups, bias=False).apply(weights_init_kaiming))
+                        if pretrain_ongroups:
+                            setattr(model_ft[int(item[0])].get_submodule(item[1]).weight, "data", weight)                        
+                    else:
+                        setattr(model_ft[int(item[0])], item[1], nn.Conv2d(int(m.weight.size(1)), int(m.weight.size(0)), kernel_size=1, stride=1, groups=n_groups, bias=False).apply(weights_init_kaiming))
+                        if pretrain_ongroups:
+                            setattr(model_ft[int(item[0])].get_submodule(item[1]).weight, "data", weight)
+        self.model = nn.ModuleList()
 
-class reid_LAI_2BG(nn.Module):
-
-    def __init__(self, ft_net, n_cams=20, n_views=0): ##V776 20 8
-        super(reid_LAI_2BG, self).__init__()
-
-        self.globalBranch = ft_net
-        if n_views > 0 and n_cams > 0:
-            self.camview = 'camview'
-        elif n_views > 0:
-            self.camview = 'view'
+        if len(n_branches) > 0:
+            if n_branches[0] == "2x":
+                self.model.append(model_ft)
+                self.model.append(copy.deepcopy(model_ft))
+            else:
+                for item in n_branches:
+                    if item =="R50":
+                        self.model.append(copy.deepcopy(model_ft))
+                    elif item == "BoT":
+                        layer_0 = Bottleneck_Transformer(1024, 512, resolution=[16, 16], use_mlp = False)
+                        layer_1 = Bottleneck_Transformer(2048, 512, resolution=[16, 16], use_mlp = False)
+                        layer_2 = Bottleneck_Transformer(2048, 512, resolution=[16, 16], use_mlp = False)
+                        self.model.append(nn.Sequential(layer_0, layer_1, layer_2))
+                    else:
+                        print("No architecture selected for branching by expansion!")
         else:
-            self.camview = 'cam'
+            self.model.append(model_ft)
 
-        if self.camview == 'camview':
-            self.sie_embed_ce = nn.Parameter(torch.zeros(n_cams * n_views, 1024))
-            self.sie_embed_t = nn.Parameter(torch.zeros(n_cams * n_views, 1024))
+
+    def forward(self, x):
+        output = []
+        for cnt, branch in enumerate(self.model):
+            if self.x2g and cnt>0:
+                aux = torch.cat((x[:,int(x.shape[1]/2):,:,:], x[:,:int(x.shape[1]/2),:,:]), dim=1)
+                output.append(branch(aux))
+            elif self.x4g and cnt>0:
+                aux = torch.cat((x[:,int(x.shape[1]/4):int(x.shape[1]/4*2),:,:], x[:, :int(x.shape[1]/4),:,:], x[:, int(x.shape[1]/4*3):,:,:], x[:, int(x.shape[1]/4*2):int(x.shape[1]/4*3),:,:]), dim=1)
+                output.append(branch(aux))
+            else:
+                output.append(branch(x))
+       
+        return output
+    
+class FinalLayer(nn.Module):
+    def __init__(self, class_num, n_branches, n_groups, losses="LBS", droprate=0, linear_num=False, return_f = True, circle_softmax=False, n_cams=0, n_views=0, LAI=False, x2g=False,x4g=False):
+        super(FinalLayer, self).__init__()    
+        self.avg_pool = nn.AdaptiveAvgPool2d((1,1))
+        self.finalblocks = nn.ModuleList()
+        self.withLAI = LAI
+        if n_groups > 0:
+            self.n_groups = n_groups
+            for i in range(n_groups*(len(n_branches)+1)):
+                if losses == "LBS":
+                    if i%2==0:
+                        self.finalblocks.append(ClassBlock(int(2048/n_groups), class_num, droprate, linear=linear_num, return_f = return_f, circle=circle_softmax))
+                    else:
+                        bn= nn.BatchNorm1d(int(2048/n_groups))
+                        bn.bias.requires_grad_(False)  
+                        bn.apply(weights_init_kaiming)
+                        self.finalblocks.append(bn)
+                else:
+                    self.finalblocks.append(ClassBlock(int(2048/n_groups), class_num, droprate, linear=linear_num, return_f = return_f, circle=circle_softmax))
+        else:
+            self.n_groups = 1
+            for i in range(len(n_branches)):
+                if losses == "LBS":
+                    if i%2==0:
+                        self.finalblocks.append(ClassBlock(2048, class_num, droprate, linear=linear_num, return_f = return_f, circle=circle_softmax))
+                    else:
+                        bn= nn.BatchNorm1d(int(2048))
+                        bn.bias.requires_grad_(False)  
+                        bn.apply(weights_init_kaiming)
+                        self.finalblocks.append(bn)
+                else:
+                    self.finalblocks.append(ClassBlock(2048, class_num, droprate, linear=linear_num, return_f = return_f, circle=circle_softmax))
+
+        if losses == "LBS":
+            self.LBS = True
+        else:
+            self.LBS = False
+
+        if self.withLAI:
+            self.LAI = []
+            self.n_cams = n_cams
             self.n_views = n_views
-        elif self.camview == 'view':
-            self.sie_embed_ce = nn.Parameter(torch.zeros(n_views, 1024))
-            self.sie_embed_t = nn.Parameter(torch.zeros(n_views, 1024))
-        else:
-            self.sie_embed_ce = nn.Parameter(torch.zeros(n_cams, 1024))
-            self.sie_embed_t = nn.Parameter(torch.zeros(n_cams, 1024))
- 
+            if n_groups>0 and len(n_branches)==0:
+                n_branches = ["groups"]
+            if n_cams>0 and n_views>0:
+                if x2g or x4g:
+                    self.LAI.append(nn.Parameter(torch.zeros(n_cams * n_views, 2048)).cuda())
+                    self.LAI.append(nn.Parameter(torch.zeros(n_cams * n_views, 2048)).cuda())
+                else:
+                    for i in range(len(n_branches)):
+                        self.LAI.append(nn.Parameter(torch.zeros(n_cams * n_views, 2048)).cuda())
+            elif n_cams>0:
+                if x2g or x4g:
+                    self.LAI.append(nn.Parameter(torch.zeros(n_cams, 2048)).cuda())
+                    self.LAI.append(nn.Parameter(torch.zeros(n_cams, 2048)).cuda())
+                else:
+                    for i in range(len(n_branches)):
+                        self.LAI.append(nn.Parameter(torch.zeros(n_cams, 2048)).cuda())
+            else:
+                if x2g or x4g:
+                    self.LAI.append(nn.Parameter(torch.zeros(n_views, 2048)).cuda())
+                    self.LAI.append(nn.Parameter(torch.zeros(n_views, 2048)).cuda())
+                else:
+                    for i in range(len(n_branches)):
+                        self.LAI.append(nn.Parameter(torch.zeros(n_views, 2048)).cuda())  
 
-    def forward(self, x, cams, view):
-        if self.camview == 'camview':
-            sie_ce = self.sie_embed_ce[cams * self.n_views + view]
-            sie_t = self.sie_embed_t[cams * self.n_views + view]
-        elif self.camview == 'view':   
-            sie_ce = self.sie_embed_ce[view]
-            sie_t = self.sie_embed_t[view]
-        else:    
-            sie_ce = self.sie_embed_ce[cams]
-            sie_t = self.sie_embed_t[cams]
 
-        side = torch.cat((sie_ce, sie_t),dim=1)
-        pred, f, emb, f_s, emb_s, activations, activations_triplet = self.globalBranch(x, side)
+    def forward(self, x, cam, view):
+        # if len(x) != len(self.finalblocks):
+        #     print("Something is wrong")
+        embs = []
+        ffs = []
+        preds = []
+        for i in range(len(x)):
+            emb = self.avg_pool(x[i]).squeeze()
+            if self.withLAI:
+                if self.n_cams > 0 and self.n_views >0:
+                    emb = emb + self.LAI[i][cam * self.n_views + view]
+                elif self.n_cams >0:
+                    emb = emb + self.LAI[i][cam]
+                else:
+                    emb = emb + self.LAI[i][view]
+            for j in range(self.n_groups):
+                if self.LBS:
+                    if (i+j)%2==0:
+                        pred, ff = self.finalblocks[i+j](emb[:,int(2048/self.n_groups*j):int(2048/self.n_groups*(j+1))])
+                        ffs.append(ff)
+                        preds.append(pred)
+                    else:
+                        ff = self.finalblocks[i+j](emb[:,int(2048/self.n_groups*j):int(2048/self.n_groups*(j+1))])
+                        embs.append(emb)
+                        ffs.append(ff)
+                else:
+                    pred, ff = self.finalblocks[i+j](emb[:,int(2048/self.n_groups*j):int(2048/self.n_groups*(j+1))])
+                    embs.append(emb)
+                    ffs.append(ff)
+                    preds.append(pred)
+                    
+        return preds, embs, ffs
+
+    
+class MBR_model(nn.Module):         
+    def __init__(self, class_num, n_branches, n_groups, losses="LBS", backbone="ibn", droprate=0, linear_num=False, return_f = True, circle_softmax=False, pretrain_ongroups=True, end_bot_g=False, group_conv_mhsa=False, group_conv_mhsa_2=False, x2g=False, x4g=False, LAI=False, n_cams=0, n_views=0):
+        super(MBR_model, self).__init__()  
+
+        self.modelup2L3 = base_branches(backbone=backbone)
+        self.modelL4 = multi_branches(n_branches=n_branches, n_groups=n_groups, pretrain_ongroups=pretrain_ongroups, end_bot_g=end_bot_g, group_conv_mhsa=group_conv_mhsa, group_conv_mhsa_2=group_conv_mhsa_2, x2g=x2g, x4g=x4g)
+        self.finalblock = FinalLayer(class_num=class_num, n_branches=n_branches, n_groups=n_groups, losses=losses, droprate=droprate, linear_num=linear_num, return_f=return_f, circle_softmax=circle_softmax, LAI=LAI, n_cams=n_cams, n_views=n_views, x2g=x2g, x4g=x4g)
+        
+
+    def forward(self, x,cam, view):
+        mix = self.modelup2L3(x)
+        output = self.modelL4(mix)
+        preds, embs, ffs = self.finalblock(output, cam, view)
+
+        return preds, embs, ffs, output
+    
+if __name__ == "__main__":
+    input = torch.randn((32,3,256,256))
+    ### MBR_4G 
+    model = MBR_model(575, [], n_groups=4, losses ="LBS", end_bot_g=False, group_conv_mhsa=True, group_conv_mhsa_2=False)
+    preds, embs, ffs = model(input)
+    print("\nn_preds: ", len(preds))
+    print("n_embs: ", len(embs))
+    print("ffs: ", len(ffs))
+    ### MBR_4B
+    model = MBR_model(575, ["R50", "R50", "BoT", "BoT"], n_groups=0, losses ="LBS")
+    preds, embs, ffs = model(input)
+    print("\nn_preds: ", len(preds))
+    print("n_embs: ", len(embs))
+    print("ffs: ", len(ffs))
+    ### MBR_2x4G 
+    model = MBR_model(575, ["2x"], n_groups=4, losses ="LBS", end_bot_g=False, group_conv_mhsa=True, group_conv_mhsa_2=False, x4g=True)
+    preds, embs, ffs = model(input)
+    print("\nn_preds: ", len(preds))
+    print("n_embs: ", len(embs))
+    print("ffs: ", len(ffs))
+
+    ### MBR_2x2G 
+    model = MBR_model(575, ["2x"], n_groups=2, losses ="LBS", x2g=True)
+    preds, embs, ffs = model(input)
+    print("\nn_preds: ", len(preds))
+    print("n_embs: ", len(embs))
+    print("ffs: ", len(ffs))
 
 
-        return pred, f, emb, activations, f_s, emb_s, activations_triplet 
-      
+    ### MBR_R50_4G 
+    model = MBR_model(575, [], n_groups=4, losses ="Classic", end_bot_g=False, group_conv_mhsa=True, group_conv_mhsa_2=False)
+    preds, embs, ffs = model(input)
+    print("\nn_preds: ", len(preds))
+    print("n_embs: ", len(embs))
+    print("ffs: ", len(ffs))
+    ### MBR_R50_2G  
+    model = MBR_model(575, [], n_groups=2, losses ="LBS")
+    preds, embs, ffs = model(input)
+    print("\nn_preds: ", len(preds))
+    print("n_embs: ", len(embs))
+    print("ffs: ", len(ffs))
+    ### R50_2G
+    model = MBR_model(575, [], n_groups=2, losses ="Classic")
+    preds, embs, ffs = model(input)
+    print("\nn_preds: ", len(preds))
+    print("n_embs: ", len(embs))
+    print("ffs: ", len(ffs))
+
+    ### MBR_R50_4B 
+    model = MBR_model(575,  ["R50", "R50", "R50", "R50"], n_groups=0, losses ="LBS")
+    preds, embs, ffs = model(input)
+    print("\nn_preds: ", len(preds))
+    print("n_embs: ", len(embs))
+    print("ffs: ", len(ffs))
+
+    ### R50_4B 
+    model = MBR_model(575,  ["R50", "R50", "R50", "R50"], n_groups=0, losses ="Classic")
+    preds, embs, ffs = model(input)
+    print("\nn_preds: ", len(preds))
+    print("n_embs: ", len(embs))
+    print("ffs: ", len(ffs))    ### Hybid_4B n_groups=4
+    model = MBR_model(575, ["R50", "R50", "BoT", "BoT"], n_groups=0, losses ="Classic")
+    preds, embs, ffs = model(input)
+    print("\nn_preds: ", len(preds))
+    print("n_embs: ", len(embs))
+    print("ffs: ", len(ffs))
+    ### MBR_R50_2B 
+    model = MBR_model(575,  ["R50", "R50"], n_groups=0, losses ="LBS")
+    preds, embs, ffs = model(input)
+
+    ### Baseline
+    model = MBR_model(575,  ["R50"], n_groups=0, losses ="Classic")
+    preds, embs, ffs = model(input)
+    print("\nn_preds: ", len(preds))
+    print("n_embs: ", len(embs))
+    print("ffs: ", len(ffs))
