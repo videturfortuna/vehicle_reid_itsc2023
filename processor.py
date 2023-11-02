@@ -152,7 +152,7 @@ def get_model(data, device):
     
 
     if data['model_arch'] == 'Baseline':
-        model = MBR_model(class_num=data['n_classes'], n_branches=["R50"], losses="LBS", n_groups=0, LAI=data['LAI'], n_cams=data['n_cams'], n_views=data['n_views'])
+        model = MBR_model(class_num=data['n_classes'], n_branches=["R50"], losses="Classical", n_groups=0, LAI=data['LAI'], n_cams=data['n_cams'], n_views=data['n_views'])
         # model =  base_branches(class_num=data['n_classes'], droprate=0.0, stride=1, branch_layer=0, circle=True, linear_num=False, pool=data['pool'], backbone=data['backbone'], circle_softmax=data['circle_softmax']).to(device)  
 
 
@@ -299,15 +299,11 @@ def test_epoch(model, device, dataloader_q, dataloader_g, model_arch, writer, ep
                     _, _, ffs, _ = model(image, cam_id, view_id)
             else:
                 _, _, ffs, _ = model(image, cam_id, view_id)
-
-
-            if model_arch =='Baseline' or model_arch=="MOCOv2_OG" or model_arch=="SingleBranchOG_NLC" or model_arch == 'BoT_baseline':
-                qf.append(F.normalize(ffs))
-            else:
-                end_vec = []
-                for item in ffs:
-                    end_vec.append(F.normalize(item))
-                qf.append(torch.cat(end_vec, 1))
+          
+            end_vec = []
+            for item in ffs:
+                end_vec.append(F.normalize(item))
+            qf.append(torch.cat(end_vec, 1))
 
             q_vids.append(q_id)
             q_camids.append(cam_id)
@@ -328,13 +324,10 @@ def test_epoch(model, device, dataloader_q, dataloader_g, model_arch, writer, ep
             else:
                     _, _, ffs, _ = model(image, cam_id, view_id)
 
-            if model_arch =='Baseline' or model_arch=="MOCOv2_OG" or model_arch=="SingleBranchOG_NLC" or model_arch == 'BoT_baseline':
-                gf.append(F.normalize(ffs))
-            else:
-                end_vec = []
-                for item in ffs:
-                    end_vec.append(F.normalize(item))
-                gf.append(torch.cat(end_vec, 1))
+            end_vec = []
+            for item in ffs:
+                end_vec.append(F.normalize(item))
+            gf.append(torch.cat(end_vec, 1))
             g_vids.append(q_id)
             g_camids.append(cam_id)
         del g_images
