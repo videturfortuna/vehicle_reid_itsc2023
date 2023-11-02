@@ -1,7 +1,7 @@
 # vehicle_reid_itsc2023
 ## Strength in Diversity: Multi-Branch Representation Learning for Vehicle Re-Identification
 
-Version 0.2 - Still requiring some cleaning and LAI
+Version 0.9 - Checking if everythin works as supposed after cleaning code.
 
 All models are trained with CUDA 11.3 and PyTorch 1.11 on RTX4090 and Ryzen 7950X.
 
@@ -68,7 +68,7 @@ Hybrid R50+BoT
 | CE / Tri | 90.36/85.17 | NULL        | 91.15/86.22 | NULL        | **92.54**/**88.28** |
 
 
-Please cite our paper inspired on proposed techniques or code. ref will be published soon.
+Please cite our paper inspired on proposed techniques or code. ref will be published soon when published in IEEE, meanwhile if you want you can use arxiv.preprint
 
 
 Some code as data loading, evaluation, and other is mainly reused from:
