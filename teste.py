@@ -14,23 +14,17 @@ from processor import get_model
 import torch.multiprocessing
 import os
 import yaml
-# import matplotlib.pyplot as plt
 import cv2
-# import gc
-# from utils import re_ranking, cosine_distance, show_image_list
 
 
+# os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 
 def normalize_batch(batch, maximo=None, minimo = None):
     if maximo != None:
         return (batch - minimo.unsqueeze(-1).unsqueeze(-1)) / (maximo.unsqueeze(-1).unsqueeze(-1) - minimo.unsqueeze(-1).unsqueeze(-1))
     else:
         return (batch - torch.amin(batch, dim=(1, 2)).unsqueeze(-1).unsqueeze(-1)) / (torch.amax(batch, dim=(1, 2)).unsqueeze(-1).unsqueeze(-1) - torch.amin(batch, dim=(1, 2)).unsqueeze(-1).unsqueeze(-1))
-    
 
-
-
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
 
 def set_seed(seed):
@@ -88,8 +82,8 @@ def test_epoch(model, device, dataloader_q, dataloader_g, model_arch, remove_jun
     re_escala = torchvision.transforms.Resize((256,256), antialias=True)
 
     if data['dataset'] == 'VERIWILD':
-        queries_names = np.loadtxt('./train_test_split/test_3000_id_query.txt', dtype='str_')
-        galeria_names = np.loadtxt('./train_test_split/test_3000_id.txt', dtype='str_')
+        queries_names = np.loadtxt('/home/eurico/VERI-Wild/train_test_split/test_3000_id_query.txt', dtype='str_')
+        galeria_names = np.loadtxt('/home/eurico/VERI-Wild/train_test_split/test_3000_id.txt', dtype='str_')
     else:
         queries_names = np.loadtxt(data['query_list_file'], dtype='str_')
         galeria_names = np.loadtxt(data['gallery_list_file'], dtype='str_')
@@ -105,65 +99,42 @@ def test_epoch(model, device, dataloader_q, dataloader_g, model_arch, remove_jun
     count_imgs = 0
     blend_ratio =0.3
     with torch.no_grad():
-        for image, q_id, cam_id, _  in tqdm(dataloader_q, desc='Query infer (%)', bar_format='{l_bar}{bar:20}{r_bar}'):
+        for image, q_id, cam_id, view_id  in tqdm(dataloader_q, desc='Query infer (%)', bar_format='{l_bar}{bar:20}{r_bar}'):
             image = image.to(device)
             if scaler:
                 with torch.autocast(device_type="cuda", dtype=torch.float16):
-                    if model_arch == 'Baseline' or model_arch == "MOCOv2_OG" or model_arch == 'BoT_baseline':
-                        _, ffs, _, _, activations = model(image)
-                        activations = [activations]
-                    else:
-                        _, _, ffs, activations = model(image)
+                    _, _, ffs, activations = model(image, cam_id, view_id)
             else:
-                if model_arch == 'Baseline' or model_arch == "MOCOv2_OG" or model_arch == 'BoT_baseline':
-                    _, ffs, _, _, activations = model(image)
-                    activations = [activations]
-                else:
-                    _, _, ffs, activations = model(image)
+                _, _, ffs, activations = model(image, cam_id, view_id)
 
             if not data['dataset'] == "VehicleID":
                 save_activ(activations, count_imgs, data, re_escala, queries_names, blend_ratio)
                     
             count_imgs += activations[0].shape[0]
-            if model_arch =='Baseline' or model_arch=="MOCOv2_OG" or model_arch=="SingleBranchOG_NLC" or model_arch == 'BoT_baseline':
-                qf.append(F.normalize(ffs))
-            else:
-                end_vec = []
-                for item in ffs:
-                    end_vec.append(F.normalize(item))
-                qf.append(torch.cat(end_vec, 1))
-
+            end_vec = []
+            for item in ffs:
+                end_vec.append(F.normalize(item))
+            qf.append(torch.cat(end_vec, 1))
             q_vids.append(q_id)
             q_camids.append(cam_id)
 
         del q_images
         count_imgs = 0
-        for image, g_id, cam_id, _ in tqdm(dataloader_g, desc='Gallery infer (%)', bar_format='{l_bar}{bar:20}{r_bar}'):
+        for image, g_id, cam_id, view_id in tqdm(dataloader_g, desc='Gallery infer (%)', bar_format='{l_bar}{bar:20}{r_bar}'):
             image = image.to(device)
             if scaler:
                 with torch.autocast(device_type="cuda", dtype=torch.float16):
-                    if model_arch == 'Baseline' or model_arch == "MOCOv2_OG" or model_arch == 'BoT_baseline':
-                        _, ffs, _, _, activations = model(image)
-                        activations = [activations]
-                    else:
-                        _, _, ffs, activations = model(image)
+                    _, _, ffs, activations = model(image, cam_id, view_id)
             else:
-                if model_arch == 'Baseline' or model_arch == "MOCOv2_OG" or model_arch == 'BoT_baseline':
-                    _, ffs, _, _, activations = model(image)
-                    activations = [activations]
-                else:
-                    _, _, ffs, activations = model(image)
+                _, _, ffs, activations = model(image, cam_id, view_id)
 
             if not data['dataset'] == "VehicleID":
                 save_activ(activations, count_imgs, data, re_escala, galeria_names, blend_ratio, "_g")
 
-            if model_arch =='Baseline' or model_arch=="MOCOv2_OG" or model_arch=="SingleBranchOG_NLC" or model_arch == 'BoT_baseline':
-                gf.append(F.normalize(ffs))
-            else:
-                end_vec = []
-                for item in ffs:
-                    end_vec.append(F.normalize(item))
-                gf.append(torch.cat(end_vec, 1))
+            end_vec = []
+            for item in ffs:
+                end_vec.append(F.normalize(item))
+            gf.append(torch.cat(end_vec, 1))
             g_vids.append(g_id)
             g_camids.append(cam_id)
 
@@ -214,7 +185,6 @@ if __name__ == "__main__":
 
 
 
-
     with open(args.path_weights + "config.yaml", "r") as stream:
         data = yaml.safe_load(stream)
     # with open("./config/config.yaml", "r") as stream:
@@ -239,8 +209,8 @@ if __name__ == "__main__":
     ### Replace paths as needed
     if data['dataset']== 'VERIWILD':
         data['n_classes'] = 30671
-        data_q = CustomDataLoader2('./train_test_split/test_3000_id_query.txt', data['ROOT_DIR'], transform=teste_transform, with_view=True)
-        data_g = CustomDataLoader2('./train_test_split/test_3000_id.txt', data['ROOT_DIR'], transform=teste_transform, with_view=True)
+        data_q = CustomDataLoader2('/home/eurico/VERI-Wild/train_test_split/test_3000_id_query.txt', data['ROOT_DIR'], transform=teste_transform, with_view=True)
+        data_g = CustomDataLoader2('/home/eurico/VERI-Wild/train_test_split/test_3000_id.txt', data['ROOT_DIR'], transform=teste_transform, with_view=True)
         data_q = DataLoader(data_q, batch_size=data['BATCH_SIZE'], shuffle=False, num_workers=data['num_workers_teste']) #data['BATCH_SIZE']
         data_g = DataLoader(data_g, batch_size=data['BATCH_SIZE'], shuffle=False, num_workers=data['num_workers_teste'])
 
@@ -273,7 +243,7 @@ if __name__ == "__main__":
 
     if not data['model_arch'] == "MOCOv2":
         try:
-            model.load_state_dict(torch.load(path_weights, map_location='cpu')) 
+            model.load_state_dict(torch.load(path_weights, map_location='cpu')) #, strict=False 
         except RuntimeError:
             tmp = torch.load(path_weights, map_location='cpu')
             tmp = OrderedDict((k.replace("module.", ""), v) for k, v in tmp.items())
