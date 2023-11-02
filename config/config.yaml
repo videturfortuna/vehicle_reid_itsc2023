@@ -1,4 +1,7 @@
 model_arch: Baseline
+LAI: False
+n_cams: 20
+n_views: 8
 backbone: ibn #-D
 torch_seed: 0 #0 # 3407
 epoch_freeze_L1toL3: 0
