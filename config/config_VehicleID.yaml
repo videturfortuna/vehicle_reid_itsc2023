@@ -1,6 +1,9 @@
 model_arch: Baseline
-backbone: ibn #-D
-torch_seed: 0 #0 # 3407
+LAI: False
+n_cams: 0
+n_views: 0
+backbone: ibn 
+torch_seed: 0 
 epoch_freeze_L1toL3: 0
 freeze_triplet_branches: 0
 freeze_backbone_warmup: False  ## for circle
