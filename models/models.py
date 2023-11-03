@@ -392,33 +392,40 @@ class FinalLayer(nn.Module):
             self.LBS = False
 
         if self.withLAI:
-            self.LAI = []
+            # self.LAI = []
             self.n_cams = n_cams
             self.n_views = n_views
             if n_groups>0 and len(n_branches)==0:
                 n_branches = ["groups"]
             if n_cams>0 and n_views>0:
                 if x2g or x4g:
-                    self.LAI.append(nn.Parameter(torch.zeros(n_cams * n_views, 2048)).cuda())
-                    self.LAI.append(nn.Parameter(torch.zeros(n_cams * n_views, 2048)).cuda())
+                    # self.LAI.append(nn.Parameter(torch.zeros(n_cams * n_views, 2048)))
+                    # self.LAI.append(nn.Parameter(torch.zeros(n_cams * n_views, 2048)))
+                    self.LAI = nn.Parameter(torch.zeros(2, n_cams * n_views, 2048))
                 else:
-                    for i in range(len(n_branches)):
-                        self.LAI.append(nn.Parameter(torch.zeros(n_cams * n_views, 2048)).cuda())
+                    # for i in range(len(n_branches)):
+                        # self.LAI.append(nn.Parameter(torch.zeros(n_cams * n_views, 2048)))
+                    self.LAI = nn.Parameter(torch.zeros(len(n_branches), n_cams * n_views, 2048))
             elif n_cams>0:
                 if x2g or x4g:
-                    self.LAI.append(nn.Parameter(torch.zeros(n_cams, 2048)).cuda())
-                    self.LAI.append(nn.Parameter(torch.zeros(n_cams, 2048)).cuda())
+                    # self.LAI.append(nn.Parameter(torch.zeros(n_cams, 2048)))
+                    # self.LAI.append(nn.Parameter(torch.zeros(n_cams, 2048)))
+                    self.LAI = nn.Parameter(torch.zeros(2, n_cams * n_views, 2048))
                 else:
-                    for i in range(len(n_branches)):
-                        self.LAI.append(nn.Parameter(torch.zeros(n_cams, 2048)).cuda())
+                    # for i in range(len(n_branches)):
+                        # self.LAI.append(nn.Parameter(torch.zeros(n_cams, 2048)))
+                    self.LAI = nn.Parameter(torch.zeros(len(n_branches), n_cams * n_views, 2048))
             else:
                 if x2g or x4g:
-                    self.LAI.append(nn.Parameter(torch.zeros(n_views, 2048)).cuda())
-                    self.LAI.append(nn.Parameter(torch.zeros(n_views, 2048)).cuda())
+                    # self.LAI.append(nn.Parameter(torch.zeros(n_views, 2048)))
+                    # self.LAI.append(nn.Parameter(torch.zeros(n_views, 2048)))
+                    self.LAI = nn.Parameter(torch.zeros(2, n_cams * n_views, 2048))
                 else:
-                    for i in range(len(n_branches)):
-                        self.LAI.append(nn.Parameter(torch.zeros(n_views, 2048)).cuda())  
+                    # for i in range(len(n_branches)):
+                        # self.LAI.append(nn.Parameter(torch.zeros(n_views, 2048)))
+                    self.LAI = nn.Parameter(torch.zeros(len(n_branches), n_cams * n_views, 2048))
 
+            # self.LAI = nn.ModuleList(self.LAI)
 
     def forward(self, x, cam, view):
         # if len(x) != len(self.finalblocks):
@@ -430,11 +437,14 @@ class FinalLayer(nn.Module):
             emb = self.avg_pool(x[i]).squeeze()
             if self.withLAI:
                 if self.n_cams > 0 and self.n_views >0:
-                    emb = emb + self.LAI[i][cam * self.n_views + view]
+                    #emb = emb + self.LAI[i][cam * self.n_views + view]
+                    emb = emb + self.LAI[i, cam * self.n_views + view, :]
                 elif self.n_cams >0:
-                    emb = emb + self.LAI[i][cam]
+                    #emb = emb + self.LAI[i][cam]
+                    emb = emb + self.LAI[i, cam, :]
                 else:
-                    emb = emb + self.LAI[i][view]
+                    #emb = emb + self.LAI[i][view]
+                    emb = emb + self.LAI[i, view, :]
             for j in range(self.n_groups):
                 aux_emb = emb[:,int(2048/self.n_groups*j):int(2048/self.n_groups*(j+1))]
                 if self.LBS:
@@ -476,9 +486,14 @@ if __name__ == "__main__":
     input = torch.randn((32,3,256,256))
 
 
-
+    ### MBR_4B
+    model = MBR_model(575, ["R50", "R50", "BoT", "BoT"], n_groups=0, losses ="LBS", LAI=True)
+    preds, embs, ffs, output = model(input, torch.randint(0,19,(32,1)), torch.randint(0,7,(32,8)))
+    print("\nn_preds: ", len(preds))
+    print("n_embs: ", len(embs))
+    print("ffs: ", len(ffs))
         ### Baseline
-    model = MBR_model(575,  ["R50"], n_groups=0, losses ="Classic")
+    model = MBR_model(575,  ["R50"], n_groups=0, losses ="Classic", LAI=True)
     preds, embs, ffs = model(input)
     print("\nn_preds: ", len(preds))
     print("n_embs: ", len(embs))
@@ -489,12 +504,7 @@ if __name__ == "__main__":
     print("\nn_preds: ", len(preds))
     print("n_embs: ", len(embs))
     print("ffs: ", len(ffs))
-    ### MBR_4B
-    model = MBR_model(575, ["R50", "R50", "BoT", "BoT"], n_groups=0, losses ="LBS")
-    preds, embs, ffs = model(input)
-    print("\nn_preds: ", len(preds))
-    print("n_embs: ", len(embs))
-    print("ffs: ", len(ffs))
+
     ### MBR_2x4G 
     model = MBR_model(575, ["2x"], n_groups=4, losses ="LBS", end_bot_g=False, group_conv_mhsa=True, group_conv_mhsa_2=False, x4g=True)
     preds, embs, ffs = model(input)
