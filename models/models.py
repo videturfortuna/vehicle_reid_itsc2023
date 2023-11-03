@@ -8,8 +8,6 @@ import numpy as np
 import copy
 
 
-
-
 def pdist(vectors):
     distance_matrix = -2 * vectors.mm(torch.t(vectors)) + vectors.pow(2).sum(dim=1).view(1, -1) + vectors.pow(2).sum(
         dim=1).view(-1, 1)
@@ -438,18 +436,20 @@ class FinalLayer(nn.Module):
                 else:
                     emb = emb + self.LAI[i][view]
             for j in range(self.n_groups):
+                aux_emb = emb[:,int(2048/self.n_groups*j):int(2048/self.n_groups*(j+1))]
                 if self.LBS:
                     if (i+j)%2==0:
-                        pred, ff = self.finalblocks[i+j](emb[:,int(2048/self.n_groups*j):int(2048/self.n_groups*(j+1))])
+                        pred, ff = self.finalblocks[i+j](aux_emb)
                         ffs.append(ff)
                         preds.append(pred)
                     else:
-                        ff = self.finalblocks[i+j](emb[:,int(2048/self.n_groups*j):int(2048/self.n_groups*(j+1))])
-                        embs.append(emb)
+                        ff = self.finalblocks[i+j](aux_emb)
+                        embs.append(aux_emb)
                         ffs.append(ff)
                 else:
-                    pred, ff = self.finalblocks[i+j](emb[:,int(2048/self.n_groups*j):int(2048/self.n_groups*(j+1))])
-                    embs.append(emb)
+                    aux_emb = emb[:,int(2048/self.n_groups*j):int(2048/self.n_groups*(j+1))]
+                    pred, ff = self.finalblocks[i+j](aux_emb)
+                    embs.append(aux_emb)
                     ffs.append(ff)
                     preds.append(pred)
                     
@@ -474,6 +474,15 @@ class MBR_model(nn.Module):
     
 if __name__ == "__main__":
     input = torch.randn((32,3,256,256))
+
+
+
+        ### Baseline
+    model = MBR_model(575,  ["R50"], n_groups=0, losses ="Classic")
+    preds, embs, ffs = model(input)
+    print("\nn_preds: ", len(preds))
+    print("n_embs: ", len(embs))
+    print("ffs: ", len(ffs))
     ### MBR_4G 
     model = MBR_model(575, [], n_groups=4, losses ="LBS", end_bot_g=False, group_conv_mhsa=True, group_conv_mhsa_2=False)
     preds, embs, ffs = model(input)
@@ -542,9 +551,4 @@ if __name__ == "__main__":
     model = MBR_model(575,  ["R50", "R50"], n_groups=0, losses ="LBS")
     preds, embs, ffs = model(input)
 
-    ### Baseline
-    model = MBR_model(575,  ["R50"], n_groups=0, losses ="Classic")
-    preds, embs, ffs = model(input)
-    print("\nn_preds: ", len(preds))
-    print("n_embs: ", len(embs))
-    print("ffs: ", len(ffs))
+
