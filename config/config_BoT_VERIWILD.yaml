@@ -92,8 +92,8 @@ warmup_method: linear
 
 alpha_ce: 0.8 #aka alpha
 beta_tri: 1.0  #aka beta
-gamma_ce: 0.4
-gamma_t: 0.4
+gamma_ce: 0.8
+gamma_t: 1.0
 
 
 #####Experiment 

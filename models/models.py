@@ -485,80 +485,9 @@ class MBR_model(nn.Module):
 if __name__ == "__main__":
     input = torch.randn((32,3,256,256))
 
-
     ### MBR_4B
     model = MBR_model(575, ["R50", "R50", "BoT", "BoT"], n_groups=0, losses ="LBS", LAI=True)
     preds, embs, ffs, output = model(input, torch.randint(0,19,(32,1)), torch.randint(0,7,(32,8)))
     print("\nn_preds: ", len(preds))
     print("n_embs: ", len(embs))
     print("ffs: ", len(ffs))
-        ### Baseline
-    model = MBR_model(575,  ["R50"], n_groups=0, losses ="Classic", LAI=True)
-    preds, embs, ffs = model(input)
-    print("\nn_preds: ", len(preds))
-    print("n_embs: ", len(embs))
-    print("ffs: ", len(ffs))
-    ### MBR_4G 
-    model = MBR_model(575, [], n_groups=4, losses ="LBS", end_bot_g=False, group_conv_mhsa=True, group_conv_mhsa_2=False)
-    preds, embs, ffs = model(input)
-    print("\nn_preds: ", len(preds))
-    print("n_embs: ", len(embs))
-    print("ffs: ", len(ffs))
-
-    ### MBR_2x4G 
-    model = MBR_model(575, ["2x"], n_groups=4, losses ="LBS", end_bot_g=False, group_conv_mhsa=True, group_conv_mhsa_2=False, x4g=True)
-    preds, embs, ffs = model(input)
-    print("\nn_preds: ", len(preds))
-    print("n_embs: ", len(embs))
-    print("ffs: ", len(ffs))
-
-    ### MBR_2x2G 
-    model = MBR_model(575, ["2x"], n_groups=2, losses ="LBS", x2g=True)
-    preds, embs, ffs = model(input)
-    print("\nn_preds: ", len(preds))
-    print("n_embs: ", len(embs))
-    print("ffs: ", len(ffs))
-
-
-    ### MBR_R50_4G 
-    model = MBR_model(575, [], n_groups=4, losses ="Classic", end_bot_g=False, group_conv_mhsa=True, group_conv_mhsa_2=False)
-    preds, embs, ffs = model(input)
-    print("\nn_preds: ", len(preds))
-    print("n_embs: ", len(embs))
-    print("ffs: ", len(ffs))
-    ### MBR_R50_2G  
-    model = MBR_model(575, [], n_groups=2, losses ="LBS")
-    preds, embs, ffs = model(input)
-    print("\nn_preds: ", len(preds))
-    print("n_embs: ", len(embs))
-    print("ffs: ", len(ffs))
-    ### R50_2G
-    model = MBR_model(575, [], n_groups=2, losses ="Classic")
-    preds, embs, ffs = model(input)
-    print("\nn_preds: ", len(preds))
-    print("n_embs: ", len(embs))
-    print("ffs: ", len(ffs))
-
-    ### MBR_R50_4B 
-    model = MBR_model(575,  ["R50", "R50", "R50", "R50"], n_groups=0, losses ="LBS")
-    preds, embs, ffs = model(input)
-    print("\nn_preds: ", len(preds))
-    print("n_embs: ", len(embs))
-    print("ffs: ", len(ffs))
-
-    ### R50_4B 
-    model = MBR_model(575,  ["R50", "R50", "R50", "R50"], n_groups=0, losses ="Classic")
-    preds, embs, ffs = model(input)
-    print("\nn_preds: ", len(preds))
-    print("n_embs: ", len(embs))
-    print("ffs: ", len(ffs))    ### Hybid_4B n_groups=4
-    model = MBR_model(575, ["R50", "R50", "BoT", "BoT"], n_groups=0, losses ="Classic")
-    preds, embs, ffs = model(input)
-    print("\nn_preds: ", len(preds))
-    print("n_embs: ", len(embs))
-    print("ffs: ", len(ffs))
-    ### MBR_R50_2B 
-    model = MBR_model(575,  ["R50", "R50"], n_groups=0, losses ="LBS")
-    preds, embs, ffs = model(input)
-
-

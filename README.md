@@ -1,13 +1,14 @@
 # vehicle_reid_itsc2023
 ## Strength in Diversity: Multi-Branch Representation Learning for Vehicle Re-Identification
 
-Version 0.9 - Checking if everythin works as supposed after cleaning code.
+Version 1.0
 
 All models are trained with CUDA 11.3 and PyTorch 1.11 on RTX4090 and Ryzen 7950X.
 
 Resuls are displayed as mAP / CMC1 in percentage values %.
 
-VehicleID was not available at the time, we report values for VehicleID now. We follow evaluation as FastReid with 10-fold cross-validation to select queries and gallery.
+VehicleID was not available at the time of writing, we report values for VehicleID now. 
+We follow evaluation as FastReid with 10-fold cross-validation to select queries and gallery.
 
 To train:
 ```console
@@ -19,7 +20,9 @@ Test:
 python teste.py --path_weights ./logs/Veri776/MBR_4G/0/
 ```
 
-If you want to test I share some of the [weights](https://drive.google.com/drive/folders/18jWbkokbGAqD3YklCmV_1U4fqVPBOL2m?usp=share_link). Still old version of model but I will update for newer version asap.
+If you want to test I share some of the [weights](https://drive.google.com/drive/folders/18jWbkokbGAqD3YklCmV_1U4fqVPBOL2m?usp=share_link). 
+
+After code reformultation there are some slight changes to the values +/- 0.2 from what is written on the paper.
 
 
 ### Veri-776
@@ -38,7 +41,7 @@ Full Precision - Baseline mAP: 81.15 CMC1: 96.96 lambda:0.6 beta:1.0
 
 ### Veri-Wild
 Half Precision - Baseline mAP: 87.24 CMC1: 96.65 lambda:0.8 beta:1.0
-Value updated due to weird behaviour with nn.parallel 
+Some values were updated after detecting weird behaviours with nn.parallel usage.
 | R50      | 4G          | 2G          | 2X2G        | 2X          | 4X          |
 | -------- | ----------- | ----------- | ----------- | ----------- | ----------- |
 | CE + Tri | 85.16/94.81 | 86.66/96.08 | 86.7/95.52  | 87.64/96.39 | 87.31/96.05 |
@@ -55,7 +58,6 @@ Value updated due to weird behaviour with nn.parallel
 
 Half Precision - Baseline mAP:  91.44 CMC1: 86.72 lambda:0.2 beta:1.0
 
-
 | R50      | 4G          | 2G          | 2X2G        | 2X          | 4X          |
 | -------- | ----------- | ----------- | ----------- | ----------- | ----------- |
 | CE + Tri | 91.5/86.81  | 91.86/87.35 | 91.6/86.95  | 92.04/87.62 | 91.79/87.28 |
@@ -68,12 +70,14 @@ Hybrid R50+BoT
 | CE / Tri | 90.36/85.17 | NULL        | 91.15/86.22 | NULL        | **92.75**/**88.46** |
 
 
-Please cite our paper inspired on proposed techniques or code. ref will be published soon when published in IEEE, meanwhile if you want you can use arxiv.preprint
+Please cite our paper if inspired on proposed techniques or code. BibTex reference will be here once the paper has been officially published in IEEE, meanwhile if you want you can use arxiv.preprint
 
+Some of the code is reused from:
 
-Some code as data loading, evaluation, and other is mainly reused from:
 Parsing-based View-aware Embedding Network for Vehicle Re-Identification
 
 Bag of Tricks and A Strong Baseline for Deep Person Re-identification
 
 FastREID
+
+So please also cite and support their work.

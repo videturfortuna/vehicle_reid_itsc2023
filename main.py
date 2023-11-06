@@ -84,8 +84,8 @@ if __name__ == "__main__":
     data['parallel'] = args.parallel or data['parallel']
     data['alpha_ce'] = args.lambda_ce or data['alpha_ce']
     data['beta_tri'] = args.lambda_triplet or data['beta_tri']
-    # data['gamma_ce'] = args.gamma_ce or data['gamma_ce']
-    # data['gamma_t'] = args.gamma_t or data['gamma_t']
+    data['gamma_ce'] = args.gamma_ce or data['gamma_ce']
+    data['gamma_t'] = args.gamma_t or data['gamma_t']
     data['backbone'] = args.backbone or data['backbone']
     data['half_precision'] = args.half_precision or data['half_precision']
     if args.mean_losses is not None: data['mean_losses'] = bool(args.mean_losses)
@@ -96,9 +96,11 @@ if __name__ == "__main__":
 
     #### Set Seed for consistent and deterministic results
     set_seed(data['torch_seed'])
+    ### Config print
     print("\n\n\n  Config used: \n")
     print(data)
     print("\n\n\n End config")
+
     #### Transformation augmentation
     teste_transform = transforms.Compose([
                     transforms.Resize((data['y_length'],data['x_length']), antialias=True),
@@ -118,19 +120,20 @@ if __name__ == "__main__":
     if not data['parallel']:  
         if data['gpu']:
             os.environ["CUDA_VISIBLE_DEVICES"] = str(data['gpu'])
-            
+
+    #### Dataset Loading       
     if data['dataset']== "VehicleID":
         data_q = CustomDataSet4VehicleID('/home/eurico/VehicleID_V1.0/train_test_split/test_list_800.txt', data['ROOT_DIR'], is_train=False, mode="q", transform=teste_transform)
         data_g = CustomDataSet4VehicleID('/home/eurico/VehicleID_V1.0/train_test_split/test_list_800.txt', data['ROOT_DIR'], is_train=False, mode="g", transform=teste_transform)
         data_train = CustomDataSet4VehicleID("/home/eurico/VehicleID_V1.0/train_test_split/train_list.txt", data['ROOT_DIR'], is_train=True, transform=train_transform)
-        data_train = DataLoader(data_train, sampler=RandomIdentitySampler2(data_train, data['BATCH_SIZE'], data['NUM_INSTANCES']), num_workers=data['num_workers_train'], batch_size = data['BATCH_SIZE'], collate_fn=train_collate_fn, pin_memory=True)#
+        data_train = DataLoader(data_train, sampler=RandomIdentitySampler(data_train, data['BATCH_SIZE'], data['NUM_INSTANCES']), num_workers=data['num_workers_train'], batch_size = data['BATCH_SIZE'], collate_fn=train_collate_fn, pin_memory=True)#
         data_q = DataLoader(data_q, batch_size=data['BATCH_SIZE'], shuffle=False, num_workers=data['num_workers_teste'])
         data_g = DataLoader(data_g, batch_size=data['BATCH_SIZE'], shuffle=False, num_workers=data['num_workers_teste'])
     if data['dataset']== 'VERIWILD':
-        data_q = CustomDataLoader2('/home/eurico/VERI-Wild/train_test_split/test_3000_id_query.txt', data['ROOT_DIR'], transform=teste_transform, with_view=False)
-        data_g = CustomDataLoader2('/home/eurico/VERI-Wild/train_test_split/test_3000_id.txt', data['ROOT_DIR'], transform=teste_transform, with_view=False)
-        data_train = CustomDataLoader2('/home/eurico/VERI-Wild/train_test_split/train_list.txt', data['ROOT_DIR'], transform=train_transform, with_view=False)
-        data_train = DataLoader(data_train, sampler=RandomIdentitySampler2(data_train, data['BATCH_SIZE'], data['NUM_INSTANCES']), num_workers=data['num_workers_train'], batch_size = data['BATCH_SIZE'], collate_fn=train_collate_fn, pin_memory=True)#
+        data_q = CustomDataSet4VERIWILD('/home/eurico/VERI-Wild/train_test_split/test_3000_id_query.txt', data['ROOT_DIR'], transform=teste_transform, with_view=False)
+        data_g = CustomDataSet4VERIWILD('/home/eurico/VERI-Wild/train_test_split/test_3000_id.txt', data['ROOT_DIR'], transform=teste_transform, with_view=False)
+        data_train = CustomDataSet4VERIWILD('/home/eurico/VERI-Wild/train_test_split/train_list.txt', data['ROOT_DIR'], transform=train_transform, with_view=False)
+        data_train = DataLoader(data_train, sampler=RandomIdentitySampler(data_train, data['BATCH_SIZE'], data['NUM_INSTANCES']), num_workers=data['num_workers_train'], batch_size = data['BATCH_SIZE'], collate_fn=train_collate_fn, pin_memory=True)#
         data_q = DataLoader(data_q, batch_size=data['BATCH_SIZE'], shuffle=False, num_workers=data['num_workers_teste'])
         data_g = DataLoader(data_g, batch_size=data['BATCH_SIZE'], shuffle=False, num_workers=data['num_workers_teste'])
 
@@ -141,7 +144,7 @@ if __name__ == "__main__":
             data_train = CustomDataSet4Veri776_withviewpont(data['train_list_file'], data['train_dir'], data['train_keypoint'], data['test_keypoint'], is_train=True, transform=train_transform)
         else:
             data_train = CustomDataSet4Veri776(data['train_list_file'], data['train_dir'], is_train=True, transform=train_transform)
-        data_train = DataLoader(data_train, sampler=RandomIdentitySampler2(data_train, data['BATCH_SIZE'], data['NUM_INSTANCES']), num_workers=data['num_workers_train'], batch_size = data['BATCH_SIZE'], collate_fn=train_collate_fn, pin_memory=True)
+        data_train = DataLoader(data_train, sampler=RandomIdentitySampler(data_train, data['BATCH_SIZE'], data['NUM_INSTANCES']), num_workers=data['num_workers_train'], batch_size = data['BATCH_SIZE'], collate_fn=train_collate_fn, pin_memory=True)
         data_q = DataLoader(data_q, batch_size=data['BATCH_SIZE'], shuffle=False, num_workers=data['num_workers_teste'])
         data_g = DataLoader(data_g, batch_size=data['BATCH_SIZE'], shuffle=False, num_workers=data['num_workers_teste'])
  
@@ -153,8 +156,7 @@ if __name__ == "__main__":
     model = get_model(data, device)
     if data['parallel']:
         model = torch.nn.DataParallel(model, device_ids=[i for i in range(torch.cuda.device_count())])
-        #model = torch.nn.DataParallel(model)
-        print("\n \n Parallel activated!")
+        print("\n \n Parallel activated!\nDo not use this with LBS!\nIt may result in weird behaviour sometimes.")
 
     ### Losses ###
     loss_fn = nn.CrossEntropyLoss(label_smoothing=data['label_smoothing'])
@@ -184,6 +186,7 @@ if __name__ == "__main__":
     else:
         scheduler = None
 
+    ### If running with fp16 precision
     if data['half_precision']:
         scaler = torch.cuda.amp.GradScaler()
     else:
@@ -192,7 +195,7 @@ if __name__ == "__main__":
     ### Initiate a Logger with TensorBoard to store Scalars, Embeddings and the weights of the model
     logger = Logger(data)
 
-    ##freeze backbone until data['warmup_iters'] 
+    ##freeze backbone at warmupup epochs up to data['warmup_iters'] 
     if data['freeze_backbone_warmup']:
         for param in model.modelup2L3.parameters():
             param.requires_grad = False
@@ -206,7 +209,6 @@ if __name__ == "__main__":
   
 
     ## Training Loop
-
     for epoch in tqdm(range(data['num_epochs'])):
         ##unfreeze backbone
         if epoch == data['warmup_iters'] -1: 
@@ -231,7 +233,6 @@ if __name__ == "__main__":
                 param.requires_grad = True
             print("\nUnfrozen Backbone before branches!")
         
-   
         ###step schedule
         if epoch >= data['epoch_freeze_L1toL3']-1:              
             scheduler.step()    

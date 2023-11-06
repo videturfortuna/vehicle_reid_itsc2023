@@ -12,81 +12,15 @@ import torchvision
 
 
 def train_collate_fn(batch):
-    imgs, pids, camids, viewids = zip(*batch)#, masks
+    imgs, pids, camids, viewids = zip(*batch)
     pids = torch.tensor(pids, dtype=torch.int64)
     viewids = torch.tensor(viewids, dtype=torch.int64)
     camids = torch.tensor(camids, dtype=torch.int64)
 
-    return torch.stack(imgs, dim=0), pids, camids, viewids #, torch.stack(masks, dim=0)
+    return torch.stack(imgs, dim=0), pids, camids, viewids 
 
-
-
-def pairwise_distance(matcher, prob_fea, gal_fea, gal_batch_size=4, prob_batch_size=4096):
-    with torch.no_grad():
-        num_gals = gal_fea.size(0)
-        num_probs = prob_fea.size(0)
-        score = torch.zeros(num_probs, num_gals, device=prob_fea.device)
-        matcher.eval()
-        for i in range(0, num_probs, prob_batch_size):
-            j = min(i + prob_batch_size, num_probs)
-            matcher.make_kernel(prob_fea[i: j, :, :, :].cuda())
-            for k in range(0, num_gals, gal_batch_size):
-                k2 = min(k + gal_batch_size, num_gals)
-                score[i: j, k: k2] = matcher(gal_fea[k: k2, :, :, :].cuda())
-        # scale matching scores to make them visually more recognizable
-        score = torch.sigmoid(score / 10)
-    return (1. - score).cpu()  # [p, g]
-
-
-
-
-class CustomDataLoader(Dataset):
-    """Face Landmarks dataset."""
-
-    def __init__(self, csv_file, root_dir, mask_dir, transform=None):
-        """
-        Args:
-            csv_file (string): Path to the csv file with annotations.
-            root_dir (string): Directory with all the images.
-            transform (callable, optional): Optional transform to be applied
-                on a sample.
-        """
-        self.data_info = pd.read_csv(csv_file, sep=' ', header=None)
         
-        self.root_dir = root_dir
-        self.mask_dir = mask_dir
-        self.transform = transform
-
-    def get_class(self, idx):
-        return self.data_info.iloc[idx, 1]    
-
-    def __len__(self):
-        return len(self.data_info)
-
-    def __getitem__(self, idx):
-        if torch.is_tensor(idx):
-            idx = idx.tolist()
-
-        img_name = os.path.join(self.root_dir,
-                                self.data_info.iloc[idx, 0])
-        image = torchvision.io.read_image(img_name)
-        mask_name = os.path.join(self.mask_dir,
-                                self.data_info.iloc[idx, 0])
-        mask = torchvision.io.read_image(mask_name)
-
-        vid = self.data_info.iloc[idx, 1]
-        camid = self.data_info.iloc[idx, 2]
-        #landmarks = np.array([landmarks])
-        #landmarks = landmarks.astype('float').reshape(-1, 2)
-        #sample = {'image': image, 'landmarks': landmarks}
-
-        if self.transform:
-            img = self.transform((image.type(torch.FloatTensor))/255.0)
-            mask = (mask.type(torch.FloatTensor))/255.0
-
-        return img, vid, camid, mask
-        
-class CustomDataLoader2(Dataset):
+class CustomDataSet4VERIWILD(Dataset):
     """Face Landmarks dataset."""
 
     def __init__(self, csv_file, root_dir, transform=None, with_view=True):
@@ -132,7 +66,7 @@ class CustomDataLoader2(Dataset):
 
 
 
-class CustomDataLoader_VERIWILDv2(Dataset):
+class CustomDataSet4VERIWILDv2(Dataset):
     """VeriWild 2.0 dataset."""
 
     def __init__(self, csv_file, root_dir, transform=None, with_view=True):
@@ -175,7 +109,7 @@ class CustomDataLoader_VERIWILDv2(Dataset):
 
 
 
-class RandomIdentitySampler2(Sampler):
+class RandomIdentitySampler(Sampler):
     """
     Randomly sample N identities, then for each identity,
     randomly sample K instances, therefore batch size is N*K.
@@ -237,68 +171,6 @@ class RandomIdentitySampler2(Sampler):
     def __len__(self):
         return self.length
 
-class RandomIdentitySampler(Sampler):
-    """
-    Randomly sample N identities, then for each identity,
-    randomly sample K instances, therefore batch size is N*K.
-    Args:
-    - data_source (list): list of (img_path, pid, camid).
-    - num_instances (int): number of instances per identity in a batch.
-    - batch_size (int): number of examples in a batch.
-    """
-
-    def __init__(self, data_source, batch_size, num_instances):
-        super(RandomIdentitySampler, self).__init__(data_source)
-        self.data_source = data_source
-        self.batch_size = batch_size
-        self.num_instances = num_instances
-        self.num_pids_per_batch = self.batch_size // self.num_instances
-        self.index_dic = defaultdict(list)
-        for index, item in enumerate(self.data_source):
-            pid = item[1]
-            self.index_dic[pid].append(index)
-        self.pids = list(self.index_dic.keys())
-
-        # estimate number of examples in an epoch
-        self.length = 0
-        for pid in self.pids:
-            idxs = self.index_dic[pid]
-            num = len(idxs)
-            if num < self.num_instances:
-                num = self.num_instances
-            self.length += num - num % self.num_instances
-
-    def __iter__(self):
-        batch_idxs_dict = defaultdict(list)
-
-        for pid in self.pids:
-            idxs = copy.deepcopy(self.index_dic[pid])
-            if len(idxs) < self.num_instances:
-                idxs = np.random.choice(idxs, size=self.num_instances, replace=True)
-            random.shuffle(idxs)
-            batch_idxs = []
-            for idx in idxs:
-                batch_idxs.append(idx)
-                if len(batch_idxs) == self.num_instances:
-                    batch_idxs_dict[pid].append(batch_idxs)
-                    batch_idxs = []
-
-        avai_pids = copy.deepcopy(self.pids)
-        final_idxs = []
-
-        while len(avai_pids) >= self.num_pids_per_batch:
-            selected_pids = random.sample(avai_pids, self.num_pids_per_batch)
-            for pid in selected_pids:
-                batch_idxs = batch_idxs_dict[pid].pop(0)
-                final_idxs.extend(batch_idxs)
-                if len(batch_idxs_dict[pid]) == 0:
-                    avai_pids.remove(pid)
-
-        self.length = len(final_idxs)
-        return iter(final_idxs)
-
-    def __len__(self):
-        return self.length
         
 class CustomDataSet4Market1501(Dataset):
     """Face Landmarks dataset."""

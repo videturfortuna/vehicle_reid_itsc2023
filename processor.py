@@ -6,155 +6,94 @@ from tqdm import tqdm
 import numpy as np
 from metrics.eval_reid import eval_func
 
-
-
-
 def get_lr(optimizer):
     for param_group in optimizer.param_groups:
         return param_group['lr']
     
 def count_parameters(model): return sum(p.numel() for p in model.parameters() if p.requires_grad)
-
     
 def get_model(data, device):
 
     ### 2B hybrid No LBS   
     if 'Hybrid_2B' == data['model_arch']:
         model = MBR_model(class_num=data['n_classes'], n_branches=["R50", "BoT"], n_groups=0, losses="Classical", LAI=data['LAI'], n_cams=data['n_cams'], n_views=data['n_views'])
-        # resnet50 = base_branches(class_num=data['n_classes'], droprate=0.0, stride=1, circle=True, branch_layer=data['branch_layer'], linear_num=False, pool=data['pool'])
-        # trans_b = botnet_branch_oficial(class_num=data['n_classes'], droprate=0.0, linear_num=False, circle=True, branch_layer=data['branch_layer'], classifier=True)        
-        # model = reid_baseline_2B_trans(resnet50, trans_b).to(device)
 
     ### 2B R50 No LBS
     if 'R50_2B' == data['model_arch']:
         model = MBR_model(class_num=data['n_classes'], n_branches=["R50", "R50"], losses="Classical", n_groups=0, LAI=data['LAI'], n_cams=data['n_cams'], n_views=data['n_views'])
-        # resnet50 = base_branches(class_num=data['n_classes'], droprate=0.0, stride=1, circle=True, branch_layer=3, linear_num=False, pool=data['pool'])
-        # subnet = ResNet_IBNa_blocks_4e5(stride=1, branch_layer=3, pool=data['pool_tripletb'], linear_num=data['linear_num'], backbone=data['backbone'], classifier=True,  n_classes=data['n_classes'])
-        # model = reid_baseline_2B(resnet50, subnet).to(device)
 
     ### 2B R50 LBS
     if data['model_arch'] == 'MBR_R50_2B':
         model = MBR_model(class_num=data['n_classes'], n_branches=["R50", "R50"], losses="LBS", n_groups=0, LAI=data['LAI'], n_cams=data['n_cams'], n_views=data['n_views'])
-        # resnet50 = base_branches(class_num=data['n_classes'], droprate=0.0, stride=1, circle=True, branch_layer=data["branch_layer"], linear_num=data['linear_num'], pool=data['pool'], backbone=data['backbone'])
-        # subnet = ResNet_IBNa_blocks_4e5(stride=1, branch_layer=data["branch_layer"], pool=data['pool_tripletb'], linear_num=data['linear_num'], end_BoT=False, backbone=data['backbone'])
-        # model = reid_doublebranch(resnet50, subnet).to(device)
-
 
     ### Baseline with BoT
     if data['model_arch'] == 'BoT_baseline':
         model = MBR_model(class_num=data['n_classes'], n_branches=["BoT"], losses="Classical", n_groups=0, LAI=data['LAI'], n_cams=data['n_cams'], n_views=data['n_views'])
-        # model = base_branches(class_num=data['n_classes'], droprate=0.0, stride=1, circle=True, branch_layer=0, linear_num=False, end_BoT=True, pool=data['pool']).to(device)
 
     ### 2B BoT LBS
     if data['model_arch'] == 'MBR_BOT_2B':
         model = MBR_model(class_num=data['n_classes'], n_branches=["BoT", "BoT"], losses="LBS", n_groups=0, LAI=data['LAI'], n_cams=data['n_cams'], n_views=data['n_views'])
-        # resnet50 = base_branches(class_num=data['n_classes'], droprate=0.0, stride=1, circle=True, branch_layer=0, linear_num=False, end_BoT=True, pool=data['pool'])
-        # trans_b = botnet_branch_oficial(class_num=data['n_classes'], droprate=0.0, linear_num=False, circle=True, classifier=False) # , pool=data['pool_trans']
-        # model = reid_doublebranch_loss_split_BoT(resnet50, trans_b).to(device)
 
     ### MBR-4B (4B hybrid LBS)
     if data['model_arch'] == 'MBR_4B':
         model = MBR_model(class_num=data['n_classes'], n_branches=["R50", "R50", "BoT", "BoT"], losses="LBS", n_groups=0, LAI=data['LAI'], n_cams=data['n_cams'], n_views=data['n_views'])
-        # resnet50 = base_branches(class_num=data['n_classes'], droprate=0.0, stride=1, circle=True, branch_layer=3, linear_num=False, pool=data['pool'])
-        # subnet = ResNet_IBNa_blocks_4e5(stride=1, branch_layer=3, pool=data['pool_tripletb'])
-        # trans_b = botnet_branch_oficial(class_num=data['n_classes'], droprate=0.0, linear_num=False, circle=True, classifier=True) # , pool=data['pool_trans']
-        # trans_b_t = botnet_branch_oficial(class_num=data['n_classes'], droprate=0.0, linear_num=False, circle=True, classifier=False) # , pool=data['pool_trans']
-        # model = reid_4B(resnet50, subnet, trans_b, trans_b_t).to(device)
     
     ### 4B hybdrid No LBS
     if data['model_arch'] == 'Hybrid_4B':
         model = MBR_model(class_num=data['n_classes'], n_branches=["R50", "R50", "BoT", "BoT"], losses="Classical", n_groups=0, LAI=data['LAI'], n_cams=data['n_cams'], n_views=data['n_views'])
-        # resnet50 = base_branches(class_num=data['n_classes'], droprate=0.0, stride=1, circle=True, branch_layer=3, linear_num=False, pool=data['pool'])
-        # subnet = ResNet_IBNa_blocks_4e5(stride=1, branch_layer=3, pool=data['pool_tripletb'], classifier=True, n_classes=data['n_classes'])
-        # trans_b = botnet_branch_oficial(class_num=data['n_classes'], droprate=0.0, linear_num=False, circle=True, classifier=True) # , pool=data['pool_trans']
-        # trans_b_t = botnet_branch_oficial(class_num=data['n_classes'], droprate=0.0, linear_num=False, circle=True, classifier=True) # , pool=data['pool_trans']
-        # model = reid_4B_bothlosses(resnet50, subnet, trans_b, trans_b_t).to(device)    
-    
+
     ### 4B R50 No LBS
     if data['model_arch'] == 'R50_4B':
-        model = MBR_model(class_num=data['n_classes'], n_branches=["R50", "R50", "R50", "R50"], losses="Classical", n_groups=0, LAI=data['LAI'], n_cams=data['n_cams'], n_views=data['n_views'])
+        model = MBR_model(class_num=data['n_classes'], n_branches=["R50", "R50", "R50", "R50"], losses="Classical", n_groups=0, LAI=data['LAI'], n_cams=data['n_cams'], n_views=data['n_views'])    
 
-        # resnet50 = base_branches(class_num=data['n_classes'], droprate=0.0, stride=1, circle=True, branch_layer=3, linear_num=False, pool=data['pool'])
-        # subnet = ResNet_IBNa_blocks_4e5(stride=1, branch_layer=3, pool=data['pool_tripletb'], classifier=True, n_classes=data['n_classes'])
-        # trans_b = ResNet_IBNa_blocks_4e5(stride=1, branch_layer=3, pool=data['pool_tripletb'], classifier=True, n_classes=data['n_classes']) # , pool=data['pool_trans']
-        # trans_b_t = ResNet_IBNa_blocks_4e5(stride=1, branch_layer=3, pool=data['pool_tripletb'], classifier=True, n_classes=data['n_classes'])
-        # model = reid_4B_bothlosses(resnet50, subnet, trans_b, trans_b_t).to(device)     
-
-    
     if data['model_arch'] == 'MBR_R50_4B':
         model = MBR_model(class_num=data['n_classes'], n_branches=["R50", "R50", "R50", "R50"], losses="Classical", n_groups=0, LAI=data['LAI'], n_cams=data['n_cams'], n_views=data['n_views'])
-        # resnet50 = base_branches(class_num=data['n_classes'], droprate=0.0, stride=1, circle=True, branch_layer=3, linear_num=False, pool=data['pool'])
-        # subnet = ResNet_IBNa_blocks_4e5(stride=1, branch_layer=3, pool=data['pool_tripletb'], classifier=False)
-        # trans_b = ResNet_IBNa_blocks_4e5(stride=1, branch_layer=3, pool=data['pool_tripletb'], classifier=True, n_classes=data['n_classes']) # , pool=data['pool_trans']
-        # trans_b_t = ResNet_IBNa_blocks_4e5(stride=1, branch_layer=3, pool=data['pool_tripletb'], classifier=False)
-        # model = reid_4B_split_losses(resnet50, subnet, trans_b, trans_b_t).to(device)       
-    
-
 
     ### 4G hybryd with LBS     MBR-4G
     if data['model_arch'] =='MBR_4G':
         model = MBR_model(class_num=data['n_classes'], n_branches=[], losses="LBS", n_groups=4, LAI=data['LAI'], n_cams=data['n_cams'], n_views=data['n_views'])
-        #model = base_branches(class_num=data['n_classes'], droprate=0.0, stride=1, branch_layer=0, circle=True, linear_num=False, pool=data['pool'], backbone=data['backbone'], groups=True, pretrain_ongroups=data['pretrain_ongroups'], groupnorm=data['group_norm'], group_conv_mhsa=True, n_groups=4).to(device) 
+
     ### 4G hybrid No LBS
     if data['model_arch'] =='Hybrid_4G':
         model = MBR_model(class_num=data['n_classes'], n_branches=[], losses="Classical", n_groups=0, LAI=data['LAI'], n_cams=data['n_cams'], n_views=data['n_views'])
-        #model = base_branches(class_num=data['n_classes'], droprate=0.0, stride=1, branch_layer=0, circle=True, linear_num=False, pool=data['pool'], backbone=data['backbone'], groups=True, pretrain_ongroups=data['pretrain_ongroups'], groupnorm=data['group_norm'], group_conv_mhsa=True, n_groups=4, all2losses=True).to(device) 
 
-
-
-    # if data['model_arch'] =='MBR_2x2G_B':    
-    #     model = base_branches(class_num=data['n_classes'], droprate=0.0, stride=1, branch_layer=0, circle=True, linear_num=False, end_BoT=False, pool=data['pool'], backbone=data['backbone'], groups=True, pretrain_ongroups=data['pretrain_ongroups'], groupnorm=data['group_norm'], x2_2bg=True).to(device)    
     if data['model_arch'] =='MBR_2x2G':    
         model = MBR_model(class_num=data['n_classes'], n_branches=[], losses="LBS", n_groups=2, LAI=data['LAI'], n_cams=data['n_cams'], n_views=data['n_views'], x2g=True, group_conv_mhsa_2=True) 
         # model = base_branches(class_num=data['n_classes'], droprate=0.0, stride=1, branch_layer=0, circle=True, linear_num=False, end_BoT=False, pool=data['pool'], backbone=data['backbone'], groups=True, pretrain_ongroups=data['pretrain_ongroups'], groupnorm=data['group_norm'], x2_2bg=False, diff_inputs=True).to(device)    
     if data['model_arch'] =='MBR_R50_2x2G':  
         model = MBR_model(class_num=data['n_classes'], n_branches=[], losses="LBS", n_groups=2, LAI=data['LAI'], n_cams=data['n_cams'], n_views=data['n_views'], x2g=True)  
-        # model = base_branches(class_num=data['n_classes'], droprate=0.0, stride=1, branch_layer=0, circle=True, linear_num=False, end_BoT=False, pool=data['pool'], backbone=data['backbone'], groups=True, pretrain_ongroups=data['pretrain_ongroups'], groupnorm=data['group_norm'], x2_2bg=False, diff_inputs=True, one_arch=True).to(device)  
-    # if data['model_arch'] =='R50_2x2G':    
-    #     model = base_branches(class_num=data['n_classes'], droprate=0.0, stride=1, branch_layer=0, circle=True, linear_num=False, end_BoT=False, pool=data['pool'], backbone=data['backbone'], groups=True, pretrain_ongroups=data['pretrain_ongroups'], groupnorm=data['group_norm'], x2_2bg=False, diff_inputs=True, one_arch=True, all2losses=True).to(device)  
-    # if data['model_arch'] == 'Hybrid_2x2G':  
-    #     model = base_branches(class_num=data['n_classes'], droprate=0.0, stride=1, branch_layer=0, circle=True, linear_num=False, end_BoT=False, pool=data['pool'], backbone=data['backbone'], groups=True, pretrain_ongroups=data['pretrain_ongroups'], groupnorm=data['group_norm'], x2_2bg=False, diff_inputs=True, one_arch=True, group_conv_mhsa_2=True).to(device)    
 
     ### 2G BoT LBS
         model = MBR_model(class_num=data['n_classes'], n_branches=[], losses="LBS", n_groups=2, LAI=data['LAI'], n_cams=data['n_cams'], n_views=data['n_views'], end_bot_g=True)
-        # model = base_branches(class_num=data['n_classes'], droprate=0.0, stride=1, branch_layer=0, circle=True, linear_num=False, end_BoT=False, pool=data['pool'], backbone=data['backbone'], groups=True, pretrain_ongroups=data['pretrain_ongroups'], groupnorm=data['group_norm'], end_bot_g =True).to(device)
+
     ### 2G R50 LBS
     if data['model_arch'] =='MBR_R50_2G':
         model = MBR_model(class_num=data['n_classes'], n_branches=[], losses="LBS", n_groups=2, LAI=data['LAI'], n_cams=data['n_cams'], n_views=data['n_views'])
-        # model = base_branches(class_num=data['n_classes'], droprate=0.0, stride=1, branch_layer=0, circle=True, linear_num=False, pool=data['pool'], backbone=data['backbone'], groups=True, pretrain_ongroups=data['pretrain_ongroups'], groupnorm=data['group_norm']).to(device) 
 
     ### 2G Hybrid No LBS
     if data['model_arch'] =='Hybrid_2G':
         model = MBR_model(class_num=data['n_classes'], n_branches=[], losses="Classical", n_groups=2, LAI=data['LAI'], n_cams=data['n_cams'], n_views=data['n_views'], group_conv_mhsa_2=True)
-        # model = base_branches(class_num=data['n_classes'], droprate=0.0, stride=1, branch_layer=0, circle=True, linear_num=False, end_BoT=False, pool=data['pool'], backbone=data['backbone'], groups=True, pretrain_ongroups=data['pretrain_ongroups'], groupnorm=data['group_norm'], group_conv_mhsa_2=True, all2losses=True).to(device)
 
     ### 2G R50 No LBS
     if data['model_arch'] =='R50_2G':
         model = MBR_model(class_num=data['n_classes'], n_branches=[], losses="Classical", n_groups=2, LAI=data['LAI'], n_cams=data['n_cams'], n_views=data['n_views'])
-        # model = base_branches(class_num=data['n_classes'], droprate=0.0, stride=1, branch_layer=0, circle=True, linear_num=False, pool=data['pool'], backbone=data['backbone'], groups=True, pretrain_ongroups=data['pretrain_ongroups'], groupnorm=data['group_norm'], all2losses=True).to(device)
+
     ### 4G R50 No LBS
     if data['model_arch'] =='R50_4G':
         model = MBR_model(class_num=data['n_classes'], n_branches=[], losses="Classical", n_groups=4, LAI=data['LAI'], n_cams=data['n_cams'], n_views=data['n_views'])
-        # model = base_branches(class_num=data['n_classes'], droprate=0.0, stride=1, branch_layer=0, circle=True, linear_num=False, pool=data['pool'], backbone=data['backbone'], groups=True, pretrain_ongroups=data['pretrain_ongroups'], groupnorm=data['group_norm'], n_groups=4, all2losses=True).to(device)
 
     ### 4G only R50 with LBS
     if data['model_arch'] =='MBR_R50_4G':
         model = MBR_model(class_num=data['n_classes'], n_branches=[], losses="LBS", n_groups=4, LAI=data['LAI'], n_cams=data['n_cams'], n_views=data['n_views'], group_conv_mhsa_2=True)
-        # model = base_branches(class_num=data['n_classes'], droprate=0.0, stride=1, branch_layer=0, circle=True, linear_num=False, pool=data['pool'], backbone=data['backbone'], groups=True, pretrain_ongroups=data['pretrain_ongroups'], groupnorm=data['group_norm'], n_groups=4).to(device)    
     
     if data['model_arch'] =='MBR_R50_2x4G':
         model = MBR_model(class_num=data['n_classes'], n_branches=["2x"], losses="LBS", n_groups=4, LAI=data['LAI'], n_cams=data['n_cams'], n_views=data['n_views'], x4g=True)
-        # model = base_branches(class_num=data['n_classes'], droprate=0.0, stride=1, branch_layer=0, circle=True, linear_num=False, pool=data['pool'], backbone=data['backbone'], groups=True, pretrain_ongroups=data['pretrain_ongroups'], groupnorm=data['group_norm'], n_groups=4, x4g=True).to(device)       
-    ### 2x4G with LBS
+
     if data['model_arch'] =='MBR_2x4G':
         model = MBR_model(class_num=data['n_classes'], n_branches=["2x"], losses="LBS", n_groups=4, LAI=data['LAI'], n_cams=data['n_cams'], n_views=data['n_views'], x4g=True, group_conv_mhsa=True)
-        # model = base_branches(class_num=data['n_classes'], droprate=0.0, stride=1, branch_layer=0, circle=True, linear_num=False, pool=data['pool'], backbone=data['backbone'], groups=True, pretrain_ongroups=data['pretrain_ongroups'], groupnorm=data['group_norm'], n_groups=4, group_conv_mhsa=True, x4g=True).to(device)    
-    
 
     if data['model_arch'] == 'Baseline':
         model = MBR_model(class_num=data['n_classes'], n_branches=["R50"], losses="Classical", n_groups=0, LAI=data['LAI'], n_cams=data['n_cams'], n_views=data['n_views'])
-        # model =  base_branches(class_num=data['n_classes'], droprate=0.0, stride=1, branch_layer=0, circle=True, linear_num=False, pool=data['pool'], backbone=data['backbone'], circle_softmax=data['circle_softmax']).to(device)  
-
 
     return model.to(device)
 
@@ -250,7 +189,6 @@ def train_epoch(model, device, dataloader, loss_fn, triplet_loss, optimizer, dat
             optimizer.step()
       
 
-        # train_acc.set_description_str(f'train loss (single batch): {acc_v/n_images:.3f}')
         loss_log.set_description_str(f'train loss : {loss.data:.3f}')
         loss_ce_log.set_description_str(f'CrossEntropy: {loss_ce.data:.3f}')
         loss_triplet_log.set_description_str(f'Triplet : {loss_t.data:.3f}')
@@ -310,7 +248,8 @@ def test_epoch(model, device, dataloader_q, dataloader_g, model_arch, writer, ep
 
             if epoch == 119:  
                 q_images.append(F.interpolate(image, (64,64)).cpu())
-        #### TensorBoard emmbeddings
+
+        #### TensorBoard emmbeddings for projector visualization
         if epoch == 119:    
             writer.write_embeddings(torch.cat(qf).cpu(), torch.cat(q_vids).cpu(), torch.cat(q_images)/2 + 0.5, 120, tag='Query embeddings')
 

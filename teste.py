@@ -7,8 +7,6 @@ from tqdm import tqdm
 import numpy as np
 from metrics.eval_reid import *
 from data.triplet_sampler import *
-from loss.losses import *
-from lr_scheduler.sche_optim import *
 from typing import OrderedDict
 from processor import get_model
 import torch.multiprocessing
@@ -25,8 +23,6 @@ def normalize_batch(batch, maximo=None, minimo = None):
     else:
         return (batch - torch.amin(batch, dim=(1, 2)).unsqueeze(-1).unsqueeze(-1)) / (torch.amax(batch, dim=(1, 2)).unsqueeze(-1).unsqueeze(-1) - torch.amin(batch, dim=(1, 2)).unsqueeze(-1).unsqueeze(-1))
 
-
-
 def set_seed(seed):
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
@@ -38,6 +34,7 @@ def set_seed(seed):
 
 def count_parameters(model): return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
+### Save activations may be not working properly after changing the code
 def save_activ(activations, count_imgs, data, transform, path_names, blend_ratio, q_or_g=""):
             cnt = 0
             for item in activations:
@@ -172,28 +169,22 @@ def test_epoch(model, device, dataloader_q, dataloader_g, model_arch, remove_jun
 
 if __name__ == "__main__":
 
+    ### Just to ensure VehicleID 10-fold validation randomness is not random to compare different models training
     set_seed(0)
     parser = argparse.ArgumentParser(description='Reid train')
 
     parser.add_argument('--batch_size', default=None, type=int, help='an integer for the accumulator')
     parser.add_argument('--dataset', default=None, help='Choose one of[Veri776, VERIWILD]')
     parser.add_argument('--model_arch', default=None, help='Model Architecture')
-    # parser.add_argument('--parallel_s', default=None, help='If model was trained with nn.DataParallel')
     parser.add_argument('--path_weights', default=None, help="Path to *.pth/*.pt loading weights file")
     args = parser.parse_args()
 
-
-
-
     with open(args.path_weights + "config.yaml", "r") as stream:
         data = yaml.safe_load(stream)
-    # with open("./config/config.yaml", "r") as stream:
-    #    data = yaml.safe_load(stream)
 
     data['BATCH_SIZE'] = args.batch_size or data['BATCH_SIZE']
     data['dataset'] = args.dataset or data['dataset']
     data['model_arch'] = args.model_arch or data['model_arch']
-
 
     teste_transform = transforms.Compose([
                     transforms.Resize((data['y_length'],data['x_length']), antialias=True),
@@ -209,8 +200,8 @@ if __name__ == "__main__":
     ### Replace paths as needed
     if data['dataset']== 'VERIWILD':
         data['n_classes'] = 30671
-        data_q = CustomDataLoader2('/home/eurico/VERI-Wild/train_test_split/test_3000_id_query.txt', data['ROOT_DIR'], transform=teste_transform, with_view=True)
-        data_g = CustomDataLoader2('/home/eurico/VERI-Wild/train_test_split/test_3000_id.txt', data['ROOT_DIR'], transform=teste_transform, with_view=True)
+        data_q = CustomDataSet4VERIWILD('/home/eurico/VERI-Wild/train_test_split/test_3000_id_query.txt', data['ROOT_DIR'], transform=teste_transform, with_view=True)
+        data_g = CustomDataSet4VERIWILD('/home/eurico/VERI-Wild/train_test_split/test_3000_id.txt', data['ROOT_DIR'], transform=teste_transform, with_view=True)
         data_q = DataLoader(data_q, batch_size=data['BATCH_SIZE'], shuffle=False, num_workers=data['num_workers_teste']) #data['BATCH_SIZE']
         data_g = DataLoader(data_g, batch_size=data['BATCH_SIZE'], shuffle=False, num_workers=data['num_workers_teste'])
 
@@ -218,8 +209,8 @@ if __name__ == "__main__":
         data['n_classes'] = 30671
         vw2_dir = "/mnt/DATADISK/Datasets/vehicle/VeriWild/v2.0/"
         set = 'B' #args.vw2_set A, B or All
-        data_q = CustomDataLoader_VERIWILDv2(vw2_dir + 'test_split_V2/'+ set +'_query.txt', vw2_dir, transform=teste_transform, with_view=True)
-        data_g = CustomDataLoader_VERIWILDv2(vw2_dir + 'test_split_V2/'+ set +'_gallery.txt', vw2_dir, transform=teste_transform, with_view=True)
+        data_q = CustomDataSet4VERIWILDv2(vw2_dir + 'test_split_V2/'+ set +'_query.txt', vw2_dir, transform=teste_transform, with_view=True)
+        data_g = CustomDataSet4VERIWILDv2(vw2_dir + 'test_split_V2/'+ set +'_gallery.txt', vw2_dir, transform=teste_transform, with_view=True)
         data_q = DataLoader(data_q, batch_size=data['BATCH_SIZE'], shuffle=False, num_workers=0) #data['BATCH_SIZE'] data['num_workers_teste']
         data_g = DataLoader(data_g, batch_size=data['BATCH_SIZE'], shuffle=False, num_workers=0)
 
@@ -237,26 +228,25 @@ if __name__ == "__main__":
 
     model = get_model(data, torch.device("cpu"))
 
-
+    # One of the saved weights last.pt best_CMC.pt best_mAP.pt
     path_weights = args.path_weights + 'best_mAP.pt'
 
 
-    if not data['model_arch'] == "MOCOv2":
-        try:
-            model.load_state_dict(torch.load(path_weights, map_location='cpu')) #, strict=False 
-        except RuntimeError:
-            tmp = torch.load(path_weights, map_location='cpu')
-            tmp = OrderedDict((k.replace("module.", ""), v) for k, v in tmp.items())
-            model.load_state_dict(tmp)
+    try:
+        model.load_state_dict(torch.load(path_weights, map_location='cpu')) 
+    except RuntimeError:
+        ### nn.Parallel adds "module." to the dict names. Although like said nn.Parallel can incur in weird results in some cases 
+        tmp = torch.load(path_weights, map_location='cpu')
+        tmp = OrderedDict((k.replace("module.", ""), v) for k, v in tmp.items())
+        model.load_state_dict(tmp)
 
     
     model = model.to(device)
     model.eval()
 
-
-
-    mean = False #True
+    mean = False
     l2 = True
+
     if data['dataset'] == "VehicleID":
         list_mAP = []
         list_cmc1 = []
@@ -289,6 +279,4 @@ if __name__ == "__main__":
         with open(args.path_weights +'result_cmc_l2_'+ str(l2) + '_mean_' + str(mean) +'.npy', 'wb') as f:
             np.save(f, cmc)
 
-    print('Weights: ', path_weights)      
-        
-        
+    print('Weights: ', path_weights)
