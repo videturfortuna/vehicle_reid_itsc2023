@@ -22,7 +22,7 @@ python teste.py --path_weights ./logs/Veri776/MBR_4G/0/
 
 If you want to test I share some of the [weights](https://drive.google.com/drive/folders/18jWbkokbGAqD3YklCmV_1U4fqVPBOL2m?usp=share_link). 
 
-After code reformultation there are some slight changes to the values +/- 0.2 from what is written on the paper.
+After code reformultation there are some slight changes to the values from what is written on the paper.
 
 
 ### Veri-776
