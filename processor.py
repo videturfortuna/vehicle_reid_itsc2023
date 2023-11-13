@@ -58,10 +58,10 @@ def get_model(data, device):
         model = MBR_model(class_num=data['n_classes'], n_branches=[], losses="Classical", n_groups=0, LAI=data['LAI'], n_cams=data['n_cams'], n_views=data['n_views'])
 
     if data['model_arch'] =='MBR_2x2G':    
-        model = MBR_model(class_num=data['n_classes'], n_branches=[], losses="LBS", n_groups=2, LAI=data['LAI'], n_cams=data['n_cams'], n_views=data['n_views'], x2g=True, group_conv_mhsa_2=True) 
-        # model = base_branches(class_num=data['n_classes'], droprate=0.0, stride=1, branch_layer=0, circle=True, linear_num=False, end_BoT=False, pool=data['pool'], backbone=data['backbone'], groups=True, pretrain_ongroups=data['pretrain_ongroups'], groupnorm=data['group_norm'], x2_2bg=False, diff_inputs=True).to(device)    
+        model = MBR_model(class_num=data['n_classes'], n_branches=['2x'], losses="LBS", n_groups=2, LAI=data['LAI'], n_cams=data['n_cams'], n_views=data['n_views'], x2g=True, group_conv_mhsa_2=True) 
+
     if data['model_arch'] =='MBR_R50_2x2G':  
-        model = MBR_model(class_num=data['n_classes'], n_branches=[], losses="LBS", n_groups=2, LAI=data['LAI'], n_cams=data['n_cams'], n_views=data['n_views'], x2g=True)  
+        model = MBR_model(class_num=data['n_classes'], n_branches=['2x'], losses="LBS", n_groups=2, LAI=data['LAI'], n_cams=data['n_cams'], n_views=data['n_views'], x2g=True)  
 
     ### 2G BoT LBS
         model = MBR_model(class_num=data['n_classes'], n_branches=[], losses="LBS", n_groups=2, LAI=data['LAI'], n_cams=data['n_cams'], n_views=data['n_views'], end_bot_g=True)

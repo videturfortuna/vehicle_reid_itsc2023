@@ -15,7 +15,7 @@ import yaml
 import cv2
 
 
-# os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 
 def normalize_batch(batch, maximo=None, minimo = None):
     if maximo != None:
@@ -141,6 +141,12 @@ def test_epoch(model, device, dataloader_q, dataloader_g, model_arch, remove_jun
 
     qf = torch.cat(qf, dim=0)
     gf = torch.cat(gf, dim=0)
+    
+    with open(args.path_weights +'q_feats.npy', 'wb') as f:
+        np.save(f, qf.cpu().numpy())
+    with open(args.path_weights +'g_feats.npy', 'wb') as f:
+        np.save(f, gf.cpu().numpy())
+
     m, n = qf.shape[0], gf.shape[0]   
     distmat =  torch.pow(qf, 2).sum(dim=1, keepdim=True).expand(m, n) + \
             torch.pow(gf, 2).sum(dim=1, keepdim=True).expand(n, m).t()
@@ -230,7 +236,6 @@ if __name__ == "__main__":
 
     # One of the saved weights last.pt best_CMC.pt best_mAP.pt
     path_weights = args.path_weights + 'best_mAP.pt'
-
 
     try:
         model.load_state_dict(torch.load(path_weights, map_location='cpu')) 

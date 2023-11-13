@@ -155,3 +155,4 @@ cython_debug/
 logs/
 *.pt
 *.pth
+app.py

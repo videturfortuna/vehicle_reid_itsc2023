@@ -334,7 +334,7 @@ class multi_branches(nn.Module):
                         layer_2 = Bottleneck_Transformer(2048, 512, resolution=[16, 16], use_mlp = False)
                         self.model.append(nn.Sequential(layer_0, layer_1, layer_2))
                     else:
-                        print("No architecture selected for branching by expansion!")
+                        print("No valid architecture selected for branching by expansion!")
         else:
             self.model.append(model_ft)
 
@@ -352,7 +352,7 @@ class multi_branches(nn.Module):
                 output.append(branch(x))
        
         return output
-    
+
 class FinalLayer(nn.Module):
     def __init__(self, class_num, n_branches, n_groups, losses="LBS", droprate=0, linear_num=False, return_f = True, circle_softmax=False, n_cams=0, n_views=0, LAI=False, x2g=False,x4g=False):
         super(FinalLayer, self).__init__()    
@@ -399,33 +399,19 @@ class FinalLayer(nn.Module):
                 n_branches = ["groups"]
             if n_cams>0 and n_views>0:
                 if x2g or x4g:
-                    # self.LAI.append(nn.Parameter(torch.zeros(n_cams * n_views, 2048)))
-                    # self.LAI.append(nn.Parameter(torch.zeros(n_cams * n_views, 2048)))
                     self.LAI = nn.Parameter(torch.zeros(2, n_cams * n_views, 2048))
                 else:
-                    # for i in range(len(n_branches)):
-                        # self.LAI.append(nn.Parameter(torch.zeros(n_cams * n_views, 2048)))
                     self.LAI = nn.Parameter(torch.zeros(len(n_branches), n_cams * n_views, 2048))
             elif n_cams>0:
                 if x2g or x4g:
-                    # self.LAI.append(nn.Parameter(torch.zeros(n_cams, 2048)))
-                    # self.LAI.append(nn.Parameter(torch.zeros(n_cams, 2048)))
                     self.LAI = nn.Parameter(torch.zeros(2, n_cams * n_views, 2048))
                 else:
-                    # for i in range(len(n_branches)):
-                        # self.LAI.append(nn.Parameter(torch.zeros(n_cams, 2048)))
                     self.LAI = nn.Parameter(torch.zeros(len(n_branches), n_cams * n_views, 2048))
             else:
                 if x2g or x4g:
-                    # self.LAI.append(nn.Parameter(torch.zeros(n_views, 2048)))
-                    # self.LAI.append(nn.Parameter(torch.zeros(n_views, 2048)))
                     self.LAI = nn.Parameter(torch.zeros(2, n_cams * n_views, 2048))
                 else:
-                    # for i in range(len(n_branches)):
-                        # self.LAI.append(nn.Parameter(torch.zeros(n_views, 2048)))
                     self.LAI = nn.Parameter(torch.zeros(len(n_branches), n_cams * n_views, 2048))
-
-            # self.LAI = nn.ModuleList(self.LAI)
 
     def forward(self, x, cam, view):
         # if len(x) != len(self.finalblocks):
@@ -437,13 +423,10 @@ class FinalLayer(nn.Module):
             emb = self.avg_pool(x[i]).squeeze()
             if self.withLAI:
                 if self.n_cams > 0 and self.n_views >0:
-                    #emb = emb + self.LAI[i][cam * self.n_views + view]
                     emb = emb + self.LAI[i, cam * self.n_views + view, :]
                 elif self.n_cams >0:
-                    #emb = emb + self.LAI[i][cam]
                     emb = emb + self.LAI[i, cam, :]
                 else:
-                    #emb = emb + self.LAI[i][view]
                     emb = emb + self.LAI[i, view, :]
             for j in range(self.n_groups):
                 aux_emb = emb[:,int(2048/self.n_groups*j):int(2048/self.n_groups*(j+1))]
