@@ -84,8 +84,8 @@ if __name__ == "__main__":
     data['parallel'] = args.parallel or data['parallel']
     data['alpha_ce'] = args.lambda_ce or data['alpha_ce']
     data['beta_tri'] = args.lambda_triplet or data['beta_tri']
-    data['gamma_ce'] = args.gamma_ce or data['gamma_ce']
-    data['gamma_t'] = args.gamma_t or data['gamma_t']
+    # data['gamma_ce'] = args.gamma_ce or data['gamma_ce']
+    # data['gamma_t'] = args.gamma_t or data['gamma_t']
     data['backbone'] = args.backbone or data['backbone']
     data['half_precision'] = args.half_precision or data['half_precision']
     if args.mean_losses is not None: data['mean_losses'] = bool(args.mean_losses)
