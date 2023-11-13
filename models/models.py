@@ -464,24 +464,6 @@ class MBR_model(nn.Module):
         preds, embs, ffs = self.finalblock(output, cam, view)
 
         return preds, embs, ffs, output
-    
-
-    
-class MBR_siamese(nn.Module):         
-    def __init__(self, class_num, n_branches, n_groups, losses="LBS", backbone="ibn", droprate=0, linear_num=False, return_f = True, circle_softmax=False, pretrain_ongroups=True, end_bot_g=False, group_conv_mhsa=False, group_conv_mhsa_2=False, x2g=False, x4g=False, LAI=False, n_cams=0, n_views=0):
-        super(MBR_model, self).__init__()  
-
-        self.modelup2L3 = base_branches(backbone=backbone)
-        self.modelL4 = multi_branches(n_branches=n_branches, n_groups=n_groups, pretrain_ongroups=pretrain_ongroups, end_bot_g=end_bot_g, group_conv_mhsa=group_conv_mhsa, group_conv_mhsa_2=group_conv_mhsa_2, x2g=x2g, x4g=x4g)
-        self.finalblock = FinalLayer(class_num=class_num, n_branches=n_branches, n_groups=n_groups, losses=losses, droprate=droprate, linear_num=linear_num, return_f=return_f, circle_softmax=circle_softmax, LAI=LAI, n_cams=n_cams, n_views=n_views, x2g=x2g, x4g=x4g)
-        
-
-    def forward(self, x,cam, view):
-        mix = self.modelup2L3(x)
-        output = self.modelL4(mix)
-        preds, embs, ffs = self.finalblock(output, cam, view)
-
-        return preds, embs, ffs, output
 
 
 
