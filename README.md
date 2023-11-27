@@ -12,7 +12,7 @@ We follow evaluation as FastReid with 10-fold cross-validation to select queries
 
 To train:
 ```console
-python main.py --model_arch MBR_4G --config ./config/config_VERIWILD.yaml
+python main.py --model_arch MBR_4G --config ./config/config_BoT_VERIWILD.yaml
 ```
 
 Test:
