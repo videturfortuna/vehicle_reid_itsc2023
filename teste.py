@@ -12,10 +12,10 @@ from processor import get_model
 import torch.multiprocessing
 import os
 import yaml
+from utils import re_ranking
 #import cv2
 
 
-#os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 
 def normalize_batch(batch, maximo=None, minimo = None):
     if maximo != None:
@@ -74,7 +74,7 @@ def count_parameters(model): return sum(p.numel() for p in model.parameters() if
 #                             cv2.imwrite(outputDIR + 'mhsa_t_branch/' +str(count_imgs + i) + '.jpg', activ)
 #                     cnt += 1
 
-def test_epoch(model, device, dataloader_q, dataloader_g, model_arch, remove_junk=True, scaler=None):
+def test_epoch(model, device, dataloader_q, dataloader_g, model_arch, remove_junk=True, scaler=None, re_rank=False):
     model.eval()
     re_escala = torchvision.transforms.Resize((256,256), antialias=True)
 
@@ -148,10 +148,13 @@ def test_epoch(model, device, dataloader_q, dataloader_g, model_arch, remove_jun
     #     np.save(f, gf.cpu().numpy())
 
     m, n = qf.shape[0], gf.shape[0]   
-    distmat =  torch.pow(qf, 2).sum(dim=1, keepdim=True).expand(m, n) + \
-            torch.pow(gf, 2).sum(dim=1, keepdim=True).expand(n, m).t()
-    distmat.addmm_(qf, gf.t(),beta=1, alpha=-2)
-    distmat = torch.sqrt(distmat).cpu().numpy()
+    if re_rank:
+        distmat = re_ranking(qf, gf, k1=80, k2=16, lambda_value=0.3)
+    else:
+        distmat =  torch.pow(qf, 2).sum(dim=1, keepdim=True).expand(m, n) + \
+                torch.pow(gf, 2).sum(dim=1, keepdim=True).expand(n, m).t()
+        distmat.addmm_(qf, gf.t(),beta=1, alpha=-2)
+        distmat = torch.sqrt(distmat).cpu().numpy()
 
     q_camids = torch.cat(q_camids, dim=0).cpu().numpy()
     g_camids = torch.cat(g_camids, dim=0).cpu().numpy()
@@ -183,6 +186,7 @@ if __name__ == "__main__":
     parser.add_argument('--dataset', default=None, help='Choose one of[Veri776, VERIWILD]')
     parser.add_argument('--model_arch', default=None, help='Model Architecture')
     parser.add_argument('--path_weights', default=None, help="Path to *.pth/*.pt loading weights file")
+    parser.add_argument('--re_rank', action="store_true", help="Re-Rank")
     args = parser.parse_args()
 
     with open(args.path_weights + "config.yaml", "r") as stream:
@@ -191,6 +195,7 @@ if __name__ == "__main__":
     data['BATCH_SIZE'] = args.batch_size or data['BATCH_SIZE']
     data['dataset'] = args.dataset or data['dataset']
     data['model_arch'] = args.model_arch or data['model_arch']
+
 
     teste_transform = transforms.Compose([
                     transforms.Resize((data['y_length'],data['x_length']), antialias=True),
@@ -252,6 +257,7 @@ if __name__ == "__main__":
     mean = False
     l2 = True
 
+
     if data['dataset'] == "VehicleID":
         list_mAP = []
         list_cmc1 = []
@@ -264,7 +270,7 @@ if __name__ == "__main__":
             data_g = CustomDataSet4VehicleID_Random(lines, data['ROOT_DIR'], is_train=False, mode="g", transform=teste_transform, teste=True)
             data_q = DataLoader(data_q, batch_size=data['BATCH_SIZE'], shuffle=False, num_workers=data['num_workers_teste'])
             data_g = DataLoader(data_g, batch_size=data['BATCH_SIZE'], shuffle=False, num_workers=data['num_workers_teste'])
-            cmc, mAP = test_epoch(model, device, data_q, data_g, data['model_arch'], remove_junk=True, scaler=scaler)
+            cmc, mAP = test_epoch(model, device, data_q, data_g, data['model_arch'], remove_junk=True, scaler=scaler, re_rank=args.re_rank)
             list_mAP.append(mAP)
             list_cmc1.append(cmc[0])
             list_cmc5.append(cmc[4])
@@ -277,7 +283,7 @@ if __name__ == "__main__":
         with open(args.path_weights +'result_cmc_l2_'+ str(l2) + '_mean_' + str(mean) +'.npy', 'wb') as f:
             np.save(f, cmc1)
     else:
-        cmc, mAP = test_epoch(model, device, data_q, data_g, data['model_arch'], remove_junk=True, scaler=scaler)
+        cmc, mAP = test_epoch(model, device, data_q, data_g, data['model_arch'], remove_junk=True, scaler=scaler, re_rank=args.re_rank)
         print(f'mAP = {mAP},  CMC1= {cmc[0]}, CMC5= {cmc[4]}')
         with open(args.path_weights +'result_map_l2_'+ str(l2) + '_mean_' + str(mean) +'.npy', 'wb') as f:
             np.save(f, mAP)
