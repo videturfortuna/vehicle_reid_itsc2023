@@ -1,6 +1,8 @@
 # vehicle_reid_itsc2023
 ## Strength in Diversity: Multi-Branch Representation Learning for Vehicle Re-Identification
 
+Implementation of paper [Strength in Diversity: Multi-Branch Representation Learning for Vehicle Re-Identification](https://ieeexplore.ieee.org/document/10422175)
+
 Version 1.0
 
 All models are trained with CUDA 11.3 and PyTorch 1.11 on RTX4090 and Ryzen 7950X.
@@ -70,8 +72,19 @@ Hybrid R50+BoT
 | CE / Tri | 90.36/85.17 | NULL        | 91.15/86.22 | NULL        | **92.75**/**88.46** |
 
 
-Please cite our paper if inspired on proposed techniques or code. BibTex reference will be here once the paper has been officially published in IEEE, meanwhile if you want you can use arxiv.preprint
-
+Please cite our paper if inspired on proposed techniques or code. 
+```
+@INPROCEEDINGS{10422175,
+  author={Almeida, Eurico and Silva, Bruno and Batista, Jorge},
+  booktitle={2023 IEEE 26th International Conference on Intelligent Transportation Systems (ITSC)}, 
+  title={Strength in Diversity: Multi-Branch Representation Learning for Vehicle Re-Identification}, 
+  year={2023},
+  volume={},
+  number={},
+  pages={4690-4696},
+  keywords={Representation learning;Metadata;Feature extraction;Real-time systems;Task analysis;Intelligent transportation systems;Residual neural networks},
+  doi={10.1109/ITSC57777.2023.10422175}}
+```
 Some of the code is reused from:
 
 Parsing-based View-aware Embedding Network for Vehicle Re-Identification
