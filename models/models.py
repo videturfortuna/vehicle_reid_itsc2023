@@ -420,7 +420,7 @@ class FinalLayer(nn.Module):
         ffs = []
         preds = []
         for i in range(len(x)):
-            emb = self.avg_pool(x[i]).squeeze()
+            emb = self.avg_pool(x[i]).squeeze(dim=-1).squeeze(dim=-1)
             if self.withLAI:
                 if self.n_cams > 0 and self.n_views >0:
                     emb = emb + self.LAI[i, cam * self.n_views + view, :]
