@@ -404,14 +404,15 @@ class FinalLayer(nn.Module):
                     self.LAI = nn.Parameter(torch.zeros(len(n_branches), n_cams * n_views, 2048))
             elif n_cams>0:
                 if x2g or x4g:
-                    self.LAI = nn.Parameter(torch.zeros(2, n_cams * n_views, 2048))
+                    self.LAI = nn.Parameter(torch.zeros(2, n_cams, 2048))
                 else:
-                    self.LAI = nn.Parameter(torch.zeros(len(n_branches), n_cams * n_views, 2048))
-            else:
+                    self.LAI = nn.Parameter(torch.zeros(len(n_branches), n_cams, 2048))
+            elif n_views>0:
                 if x2g or x4g:
-                    self.LAI = nn.Parameter(torch.zeros(2, n_cams * n_views, 2048))
+                    self.LAI = nn.Parameter(torch.zeros(2, n_views, 2048))
                 else:
-                    self.LAI = nn.Parameter(torch.zeros(len(n_branches), n_cams * n_views, 2048))
+                    self.LAI = nn.Parameter(torch.zeros(len(n_branches), n_views, 2048))
+            else: self.withLAI = False
 
     def forward(self, x, cam, view):
         # if len(x) != len(self.finalblocks):
