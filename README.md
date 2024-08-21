@@ -40,6 +40,11 @@ Full Precision - Baseline mAP: 81.15 CMC1: 96.96 lambda:0.6 beta:1.0
 | CE + Tri | 82.04/96.96 | 81.14/ 97.02 | 82.02/96.78 | 82.82/97.20 | 83.3/97.62  |
 | CE / Tri | 82.67/97.02 | NULL         | 82.57/97.32 | NULL        | **84.72**/**97.68** |
 
+Test with re_rank:
+```console
+python teste.py --path_weights ./logs/Veri776/MBR_4B_LAI/0/ --re_rank
+```
+With re-ranking: mAP= 92.09,  CMC1= 98.03, CMC5= 98.63
 
 ### Veri-Wild
 Half Precision - Baseline mAP: 87.24 CMC1: 96.65 lambda:0.8 beta:1.0
